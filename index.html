@@ -140,7 +140,7 @@
                     { fornecedor: "NIARA SOLUCOES EM TECNOLOGIA LTDA", sistema: "Niara pay", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Sistema de motor de vendas" },
                     { fornecedor: "PLUSPOINT INC.", sistema: "Plataforma de Gestao", departamento: "Governança de TI", modalidade: "Recorrente", tipo: "Sistema de gestão de reputação online" },
                     { fornecedor: "SOFTPLAN PLANEJAMENTO E SISTEMAS S/A", sistema: "Sienge", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "ERP Sienge" },
-                    { fornecedor: "TIVIT TECNOLOGIA S/A", sistema: "SensorIT", departamento: "Governança de TI", modalidade: "Recorrente", tipo: "Sistema de governança de TI" },
+                    { fornecedor: "TIVIT TERCEIRIZACAO DE PROCESSOS, SERVIÇOS E TECNOLOGIA S/A", sistema: "SensorIT", departamento: "Governança de TI", modalidade: "Recorrente", tipo: "Sistema de governança de TI" },
                     { fornecedor: "UNE CONNECT LTDA", sistema: "Hotspot", departamento: "Infraestrutura e Suporte", modalidade: "Recorrente", tipo: "Sistema de Gestão Hot Spot" },
                     { fornecedor: "UNE CONNECT LTDA", sistema: "Cardapio Digital", departamento: "Infraestrutura e Suporte", modalidade: "Recorrente", tipo: "Sistema de Gestão Hot Spot" },
                     { fornecedor: "VVMDR ASSESSORIA EM TURISMO EIRELI", sistema: "Omnibees", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Mensalidade sistema I.O." },
@@ -166,7 +166,18 @@
             };
 
             const saveState = () => { try { localStorage.setItem('dashboardState', JSON.stringify(appData)); } catch (e) { console.error("Erro ao guardar no localStorage:", e); } };
-            const loadState = () => { appData = JSON.parse(localStorage.getItem('dashboardState')) || JSON.parse(JSON.stringify(defaultData)); };
+            
+            const loadState = () => {
+                const storedState = localStorage.getItem('dashboardState');
+                if (storedState) {
+                    appData = JSON.parse(storedState);
+                    if (appData.companyLogo && appData.companyLogo.startsWith('data:image')) {
+                        appData.companyLogo = defaultData.companyLogo;
+                    }
+                } else {
+                    appData = JSON.parse(JSON.stringify(defaultData));
+                }
+            };
 
             const applyStyling = () => {
                 document.body.style.backgroundColor = appData.bgColor;
@@ -183,7 +194,15 @@
                 }, stepTime > 0 ? stepTime : 1);
             };
             
-            const aggregateData = (key) => appData.systems.reduce((acc, item) => { acc[item[key]] = (acc[item[key]] || 0) + 1; return acc; }, {});
+            const aggregateData = (data, key) => data.reduce((acc, item) => { acc[item[key]] = (acc[item[key]] || 0) + 1; return acc; }, {});
+
+            const updateVendorChart = (data) => {
+                const vendorData = aggregateData(data, 'fornecedor');
+                const sortedVendorData = Object.entries(vendorData).sort(([,a],[,b]) => b - a);
+                vendorChart.data.labels = sortedVendorData.map(item => item[0]);
+                vendorChart.data.datasets[0].data = sortedVendorData.map(item => item[1]);
+                vendorChart.update();
+            };
 
             const renderAll = () => {
                 if (departmentChart) departmentChart.destroy();
@@ -199,10 +218,10 @@
                 animateCountUp(document.getElementById('totalDepartamentos'), new Set(systems.map(i => i.departamento)).size);
                 animateCountUp(document.getElementById('totalRecorrentes'), systems.length > 0 ? (systems.filter(i => i.modalidade === 'Recorrente').length / systems.length * 100) : 0);
 
-                const departmentData = aggregateData('departamento');
+                const departmentData = aggregateData(systems, 'departamento');
                 departmentChart = new Chart(document.getElementById('departmentChart').getContext('2d'), { type: 'doughnut', data: { labels: Object.keys(departmentData), datasets: [{ data: Object.values(departmentData), backgroundColor: companyColors, borderColor: '#18181b' }] }, options: { responsive: true, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { color: '#FFFFFF' } } } } });
                 
-                const vendorData = aggregateData('fornecedor');
+                const vendorData = aggregateData(systems, 'fornecedor');
                 const sortedVendorData = Object.entries(vendorData).sort(([,a],[,b]) => b - a);
                 vendorChart = new Chart(document.getElementById('vendorChart').getContext('2d'), { type: 'bar', data: { labels: sortedVendorData.map(item => item[0]), datasets: [{ label: 'Nº de Sistemas', data: sortedVendorData.map(item => item[1]), backgroundColor: companyColors[0], borderWidth: 1, borderRadius: 4 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(255, 255, 255, 0.1)' }, ticks: { color: '#FFFFFF' } }, y: { grid: { display: false }, ticks: { color: '#FFFFFF' } } } } });
 
@@ -224,9 +243,32 @@
 
             const setupDashboardEventListeners = () => {
                 document.querySelectorAll('.glass-card').forEach(card => card.addEventListener('mousemove', e => { const rect = card.getBoundingClientRect(); card.style.setProperty('--x', `${e.clientX - rect.left}px`); card.style.setProperty('--y', `${e.clientY - rect.top}px`); }));
-                document.getElementById('searchInput').addEventListener('input', e => { const searchTerm = e.target.value.toLowerCase(); renderTable(appData.systems.filter(item => Object.values(item).some(val => String(val).toLowerCase().includes(searchTerm)))); document.getElementById('resetFilterBtn').classList.add('hidden'); });
-                document.getElementById('departmentChart').onclick = (evt) => { const points = departmentChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true); if (points.length) { const label = departmentChart.data.labels[points[0].index]; renderTable(appData.systems.filter(item => item.departamento === label)); document.getElementById('resetFilterBtn').classList.remove('hidden'); } };
-                document.getElementById('resetFilterBtn').onclick = () => { renderTable(appData.systems); document.getElementById('resetFilterBtn').classList.add('hidden'); document.getElementById('searchInput').value = ''; };
+                
+                document.getElementById('searchInput').addEventListener('input', e => { 
+                    const searchTerm = e.target.value.toLowerCase(); 
+                    const filteredSystems = appData.systems.filter(item => Object.values(item).some(val => String(val).toLowerCase().includes(searchTerm)));
+                    renderTable(filteredSystems);
+                    updateVendorChart(filteredSystems); // Opcional: filtrar gráfico de fornecedor ao pesquisar
+                    document.getElementById('resetFilterBtn').classList.add('hidden'); 
+                });
+
+                document.getElementById('departmentChart').onclick = (evt) => { 
+                    const points = departmentChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true); 
+                    if (points.length) { 
+                        const label = departmentChart.data.labels[points[0].index]; 
+                        const filteredSystems = appData.systems.filter(item => item.departamento === label);
+                        renderTable(filteredSystems);
+                        updateVendorChart(filteredSystems); // <-- AQUI A MÁGICA ACONTECE
+                        document.getElementById('resetFilterBtn').classList.remove('hidden'); 
+                    } 
+                };
+
+                document.getElementById('resetFilterBtn').onclick = () => { 
+                    renderTable(appData.systems); 
+                    updateVendorChart(appData.systems); // <-- RESTAURA O GRÁFICO
+                    document.getElementById('resetFilterBtn').classList.add('hidden'); 
+                    document.getElementById('searchInput').value = ''; 
+                };
             };
 
             const setupEditPanelEventListeners = () => {
