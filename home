@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plataforma de Dashboard de TI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --brand-green-dark: #166534;
+            --brand-green-light: #22c55e;
+            --glow-color: rgba(34, 197, 94, 0.5);
+            --bg-color: #2B652E;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(34, 197, 94, 0.2) 0%, transparent 40%),
+                radial-gradient(circle at 80% 90%, rgba(22, 101, 52, 0.2) 0%, transparent 40%);
+            min-height: 100vh;
+            color: #f3f4f6;
+            transition: background-color 0.3s ease;
+        }
+
+        .glass-card {
+            background-color: rgba(24, 24, 27, 0.5);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.75rem; padding: 1.5rem;
+            position: relative; overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .glass-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2); }
+        .glass-card::before {
+            content: ''; position: absolute;
+            width: 150px; height: 150px; border-radius: 50%;
+            background: var(--glow-color); filter: blur(80px);
+            opacity: 0; transition: opacity 0.5s ease;
+            top: var(--y, 0); left: var(--x, 0);
+            transform: translate(-50%, -50%); pointer-events: none;
+        }
+        .glass-card:hover::before { opacity: 1; }
+
+        @keyframes slideInUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .animate-on-load { opacity: 0; animation-fill-mode: forwards; animation-name: slideInUp; animation-duration: 0.6s; animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+        
+        #editPanel { transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        #editPanel.open { transform: translateX(0); }
+        #editPanel::-webkit-scrollbar { width: 6px; }
+        #editPanel::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); border-radius: 3px; }
+        #editPanel::-webkit-scrollbar-thumb { background: rgba(34, 197, 94, 0.6); border-radius: 3px; }
+
+        Chart.defaults.color = '#FFFFFF'; /* Cor branca para todo o texto do gráfico */
+        Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+        Chart.defaults.plugins.legend.labels.boxWidth = 12; 
+        Chart.defaults.plugins.legend.labels.padding = 15;
+        Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(10, 10, 10, 0.8)'; 
+        Chart.defaults.plugins.tooltip.backdropFilter = 'blur(5px)';
+        Chart.defaults.plugins.tooltip.padding = 12; 
+        Chart.defaults.plugins.tooltip.cornerRadius = 8;
+        Chart.defaults.animation.duration = 1000; 
+        Chart.defaults.animation.easing = 'easeInOutQuart';
+    </style>
+</head>
+<body class="p-4 sm:p-6 lg:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <main id="dashboardContent">
+            <header class="mb-8 flex items-center gap-4 animate-on-load" style="animation-delay: 100ms;">
+                <img id="companyLogo" src="" alt="Logo da Empresa" class="h-12 w-auto rounded-md shadow-lg">
+                <div>
+                     <h1 class="text-3xl font-extrabold text-white tracking-tight">Sistemas Ativos - Governança de TI</h1>
+                     <p class="text-lg text-white mt-1">Análise interativa dos ativos de tecnologia.</p>
+                </div>
+            </header>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="glass-card animate-on-load" style="animation-delay: 200ms;"><h2 class="text-xl font-semibold text-white">Total de Sistemas</h2><p id="totalSistemas" class="text-4xl font-bold text-white mt-2">0</p></div>
+                <div class="glass-card animate-on-load" style="animation-delay: 300ms;"><h2 class="text-xl font-semibold text-white">Total de Fornecedores</h2><p id="totalFornecedores" class="text-4xl font-bold text-white mt-2">0</p></div>
+                <div class="glass-card animate-on-load" style="animation-delay: 400ms;"><h2 class="text-xl font-semibold text-white">Total de Departamentos</h2><p id="totalDepartamentos" class="text-4xl font-bold text-white mt-2">0</p></div>
+                <div class="glass-card animate-on-load" style="animation-delay: 500ms;"><h2 class="text-xl font-semibold text-white">Contratos Recorrentes</h2><p id="totalRecorrentes" class="text-4xl font-bold text-white mt-2">0%</p></div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
+                <div class="glass-card lg:col-span-2 animate-on-load" style="animation-delay: 600ms;"><h3 class="text-xl font-semibold mb-4 text-center">Sistemas por Departamento</h3><canvas id="departmentChart"></canvas></div>
+                <div class="glass-card lg:col-span-3 animate-on-load" style="animation-delay: 700ms;"><h3 class="text-xl font-semibold mb-4 text-center">Sistemas por Fornecedor</h3><div class="h-80 sm:h-96"><canvas id="vendorChart"></canvas></div></div>
+            </div>
+
+            <div class="glass-card animate-on-load" style="animation-delay: 900ms;">
+                <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+                    <div class="flex items-center gap-4"><h3 class="text-xl font-semibold">Todos os Sistemas</h3><button id="resetFilterBtn" class="hidden bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded-full text-sm transition-all">Mostrar Todos</button></div>
+                    <input type="text" id="searchInput" placeholder="Filtrar sistemas..." class="w-full sm:w-72 bg-gray-900/50 border border-gray-600 rounded-lg px-4 py-2 focus-outline-none focus:ring-2 focus:ring-green-500 text-white">
+                </div>
+                <div class="overflow-x-auto"><table class="w-full text-left"><thead class="border-b border-gray-600"><tr class="text-white"><th class="p-3">Fornecedor</th><th class="p-3">Sistema</th><th class="p-3">Departamento</th><th class="p-3">Tipo de Serviço</th></tr></thead><tbody id="systemsTable"></tbody></table></div>
+            </div>
+        </main>
+    </div>
+
+    <button id="editModeToggle" class="fixed bottom-6 right-6 bg-green-600 hover:bg-green-500 text-white rounded-full p-4 shadow-lg transition-transform duration-300 hover:scale-110 focus:outline-none">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 0 2l-.15.08a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l-.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1 0-2l.15-.08a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+    </button>
+
+    <aside id="editPanel" class="fixed top-0 right-0 h-full w-96 bg-gray-900/80 backdrop-blur-lg shadow-2xl p-6 overflow-y-auto z-50">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-white">Modo Edição</h2>
+            <button id="closeEditPanel" class="text-gray-400 hover:text-white">&times;</button>
+        </div>
+        
+        <div class="space-y-6">
+            <div><label for="bgColorPicker" class="block text-sm font-medium text-white mb-2">Cor de Fundo</label><input type="color" id="bgColorPicker" class="w-full h-10 p-1 bg-gray-800 border border-gray-600 rounded-lg cursor-pointer"></div>
+            <div><label for="logoUploader" class="block text-sm font-medium text-white mb-2">Logo da Empresa</label><input type="file" id="logoUploader" accept="image/*" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-600 file:text-white hover:file:bg-green-700"></div>
+            <div><label for="dataEditor" class="block text-sm font-medium text-white mb-2">Dados (JSON)</label><textarea id="dataEditor" rows="10" class="w-full bg-gray-800 border border-gray-600 rounded-lg p-2 text-sm text-gray-300 font-mono focus:outline-none focus:ring-2 focus:ring-green-500"></textarea><p id="jsonError" class="text-red-500 text-xs mt-1 hidden">JSON inválido!</p></div>
+            <button id="saveChanges" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-all">Guardar e Atualizar Dashboard</button>
+        </div>
+    </aside>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            let appData = { systems: [], companyLogo: '', bgColor: '#2B652E' };
+            let departmentChart, vendorChart;
+            const companyColors = ['#22c55e', '#84cc16', '#eab308', '#14b8a6', '#6366f1', '#ec4899'];
+
+            const defaultData = {
+                systems: [
+                    { fornecedor: "ASSOCIATED SOFTWARE COMPANY LTDA", sistema: "Omnichannel", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Omnichannel" },
+                    { fornecedor: "BEEZPAY TRAVEL SOLUTIONS S.A", sistema: "Travel Omnibees", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Sistema de Vendas" },
+                    { fornecedor: "BENNER SISTEMAS SA", sistema: "Benner", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "ERP Benner" },
+                    { fornecedor: "BUYSOFT DO BRASIL LTDA", sistema: "Azure", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Azure" },
+                    { fornecedor: "DIGITRO TECNOLOGIA S.A.", sistema: "Digitro", departamento: "Infraestrutura e Suporte", modalidade: "Recorrente", tipo: "Central Telefonica" },
+                    { fornecedor: "E-SOLUTION TECNOLOGIA E INOVACAO LTDA", sistema: "Acces Center", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Mensalidade sistema" },
+                    { fornecedor: "E-SOLUTION TECNOLOGIA E INOVACAO LTDA", sistema: "Portal", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Mensalidade sistema" },
+                    { fornecedor: "GUARDIAO DIGITAL GESTAO DO CONHECIMENTO LTDA", sistema: "GED Guardiao Digital", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "GED WAM" },
+                    { fornecedor: "LIGHTHOUSE", sistema: "Lighthouse", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Sistema de reservas" },
+                    { fornecedor: "NIARA SOLUCOES EM TECNOLOGIA LTDA", sistema: "Niara pay", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Sistema de motor de vendas" },
+                    { fornecedor: "PLUSPOINT INC.", sistema: "Plataforma de Gestao", departamento: "Governança de TI", modalidade: "Recorrente", tipo: "Sistema de gestão de reputação online" },
+                    { fornecedor: "SOFTPLAN PLANEJAMENTO E SISTEMAS S/A", sistema: "Sienge", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "ERP Sienge" },
+                    { fornecedor: "TIVIT TERCEIRIZACAO DE PROCESSOS, SERVIÇOS E TECNOLOGIA S/A", sistema: "SensorIT", departamento: "Governança de TI", modalidade: "Recorrente", tipo: "Sistema de governança de TI" },
+                    { fornecedor: "UNE CONNECT LTDA", sistema: "Hotspot", departamento: "Infraestrutura e Suporte", modalidade: "Recorrente", tipo: "Sistema de Gestão Hot Spot" },
+                    { fornecedor: "UNE CONNECT LTDA", sistema: "Cardapio Digital", departamento: "Infraestrutura e Suporte", modalidade: "Recorrente", tipo: "Sistema de Gestão Hot Spot" },
+                    { fornecedor: "VVMDR ASSESSORIA EM TURISMO EIRELI", sistema: "Omnibees", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Mensalidade sistema I.O." },
+                    { fornecedor: "OPENAI", sistema: "IA", departamento: "Inovação e IA", modalidade: "Recorrente", tipo: "OpenAI" },
+                    { fornecedor: "ANTROPIC", sistema: "IA", departamento: "Inovação e IA", modalidade: "Recorrente", tipo: "Antropic" },
+                    { fornecedor: "DEEP SEEK", sistema: "IA", departamento: "Inovação e IA", modalidade: "Recorrente", tipo: "Deep Seek" },
+                    { fornecedor: "GOOGLE ONE + GEMINI", sistema: "IA", departamento: "Inovação e IA", modalidade: "Recorrente", tipo: "Google One + Gemini" },
+                    { fornecedor: "CHAT GPT PRÓ", sistema: "IA", departamento: "Inovação e IA", modalidade: "Recorrente", tipo: "Chat GPT Pró" },
+                    { fornecedor: "SUPABASE", sistema: "IA", departamento: "Inovação e IA", modalidade: "Recorrente", tipo: "SUPABASE" },
+                    { fornecedor: "EVADESK LTDA", sistema: "IA", departamento: "Inovação e IA", modalidade: "Recorrente", tipo: "Evadesk" },
+                    { fornecedor: "MGC LTDA", sistema: "IA", departamento: "Inovação e IA", modalidade: "Recorrente", tipo: "MGC" },
+                    { fornecedor: "SW SOLUCOES INTEGRADAS LTDA", sistema: "Banco de Dados", departamento: "Inovação e IA", modalidade: "Recorrente", tipo: "Cloud" },
+                    { fornecedor: "AMAZON AWS SERVIÇOS BRASIL LTDA.", sistema: "Banco de dados AWS", departamento: "Infraestrutura e Suporte", modalidade: "Recorrente", tipo: "AWS" },
+                    { fornecedor: "RD", sistema: "RSSTATION", departamento: "Marketing", modalidade: "Recorrente", tipo: "automação de MKT" },
+                    { fornecedor: "EVA DESK", sistema: "EVADESK", departamento: "Marketing", modalidade: "Recorrente", tipo: "CRM e Chatbot IA" },
+                    { fornecedor: "SAFETYMAILS", sistema: "Safety", departamento: "Marketing", modalidade: "Recorrente", tipo: "disparo de e-mails" },
+                    { fornecedor: "Active Campaing", sistema: "Active Campaing", departamento: "Marketing", modalidade: "Recorrente", tipo: "CRM automação de mkt" },
+                    { fornecedor: "Autodesk/Buysoft", sistema: "AUTOCAD", departamento: "Arquitetura e Infraestrutura", modalidade: "Recorrente", tipo: "Plataforma de projetos de engenharia" },
+                    { fornecedor: "PROJURIS", sistema: "Projuris", departamento: "Jurídico", modalidade: "Recorrente", tipo: "Plataforma jurídica de doc." }
+                ],
+               companyLogo: 'data:image/jpeg;base64,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',
+                bgColor: '#2B652E'
+            };
+
+            const saveState = () => { try { localStorage.setItem('dashboardState', JSON.stringify(appData)); } catch (e) { console.error("Erro ao guardar no localStorage:", e); } };
+            const loadState = () => { appData = JSON.parse(localStorage.getItem('dashboardState')) || JSON.parse(JSON.stringify(defaultData)); };
+
+            const applyStyling = () => {
+                document.body.style.backgroundColor = appData.bgColor;
+                document.getElementById('companyLogo').src = appData.companyLogo;
+            };
+
+            const animateCountUp = (el, end, duration = 1500) => {
+                let start = 0, range = end - start, current = start, increment = end > start ? 1 : -1;
+                const stepTime = Math.abs(Math.floor(duration / range));
+                const timer = setInterval(() => {
+                    current += increment;
+                    el.innerHTML = el.id === 'totalRecorrentes' ? `${Math.ceil(current)}%` : Math.ceil(current);
+                    if (current == end) clearInterval(timer);
+                }, stepTime > 0 ? stepTime : 1);
+            };
+            
+            const aggregateData = (key) => appData.systems.reduce((acc, item) => { acc[item[key]] = (acc[item[key]] || 0) + 1; return acc; }, {});
+
+            const renderAll = () => {
+                if (departmentChart) departmentChart.destroy();
+                if (vendorChart) vendorChart.destroy();
+                
+                applyStyling();
+
+                const { systems } = appData;
+                if (!systems || systems.length === 0) return;
+
+                animateCountUp(document.getElementById('totalSistemas'), systems.length);
+                animateCountUp(document.getElementById('totalFornecedores'), new Set(systems.map(i => i.fornecedor)).size);
+                animateCountUp(document.getElementById('totalDepartamentos'), new Set(systems.map(i => i.departamento)).size);
+                animateCountUp(document.getElementById('totalRecorrentes'), systems.length > 0 ? (systems.filter(i => i.modalidade === 'Recorrente').length / systems.length * 100) : 0);
+
+                const departmentData = aggregateData('departamento');
+                departmentChart = new Chart(document.getElementById('departmentChart').getContext('2d'), { type: 'doughnut', data: { labels: Object.keys(departmentData), datasets: [{ data: Object.values(departmentData), backgroundColor: companyColors, borderColor: '#18181b' }] }, options: { responsive: true, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { color: '#FFFFFF' } } } } });
+                
+                const vendorData = aggregateData('fornecedor');
+                const sortedVendorData = Object.entries(vendorData).sort(([,a],[,b]) => b - a);
+                vendorChart = new Chart(document.getElementById('vendorChart').getContext('2d'), { type: 'bar', data: { labels: sortedVendorData.map(item => item[0]), datasets: [{ label: 'Nº de Sistemas', data: sortedVendorData.map(item => item[1]), backgroundColor: companyColors[0], borderWidth: 1, borderRadius: 4 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(255, 255, 255, 0.1)' }, ticks: { color: '#FFFFFF' } }, y: { grid: { display: false }, ticks: { color: '#FFFFFF' } } } } });
+
+                renderTable(appData.systems);
+                setupDashboardEventListeners();
+            };
+            
+            const renderTable = (dataToRender) => {
+                const tableBody = document.getElementById('systemsTable');
+                tableBody.innerHTML = dataToRender.length > 0 ? dataToRender.map(item => `<tr class="border-b border-gray-700/50 hover:bg-gray-800/50 transition-colors duration-200"><td class="p-3">${item.fornecedor}</td><td class="p-3">${item.sistema}</td><td class="p-3">${item.departamento}</td><td class="p-3">${item.tipo}</td></tr>`).join('') : `<tr><td colspan="4" class="p-4 text-center text-gray-400">Nenhum sistema encontrado.</td></tr>`;
+            };
+
+            const populateEditPanel = () => {
+                document.getElementById('bgColorPicker').value = appData.bgColor;
+                document.getElementById('dataEditor').value = JSON.stringify(appData.systems, null, 2);
+            };
+
+            const handleImageUpload = (file, callback) => { const reader = new FileReader(); reader.onload = e => callback(e.target.result); reader.readAsDataURL(file); };
+
+            const setupDashboardEventListeners = () => {
+                document.querySelectorAll('.glass-card').forEach(card => card.addEventListener('mousemove', e => { const rect = card.getBoundingClientRect(); card.style.setProperty('--x', `${e.clientX - rect.left}px`); card.style.setProperty('--y', `${e.clientY - rect.top}px`); }));
+                document.getElementById('searchInput').addEventListener('input', e => { const searchTerm = e.target.value.toLowerCase(); renderTable(appData.systems.filter(item => Object.values(item).some(val => String(val).toLowerCase().includes(searchTerm)))); document.getElementById('resetFilterBtn').classList.add('hidden'); });
+                document.getElementById('departmentChart').onclick = (evt) => { const points = departmentChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true); if (points.length) { const label = departmentChart.data.labels[points[0].index]; renderTable(appData.systems.filter(item => item.departamento === label)); document.getElementById('resetFilterBtn').classList.remove('hidden'); } };
+                document.getElementById('resetFilterBtn').onclick = () => { renderTable(appData.systems); document.getElementById('resetFilterBtn').classList.add('hidden'); document.getElementById('searchInput').value = ''; };
+            };
+
+            const setupEditPanelEventListeners = () => {
+                document.getElementById('editModeToggle').addEventListener('click', () => { document.getElementById('editPanel').classList.add('open'); populateEditPanel(); });
+                document.getElementById('closeEditPanel').addEventListener('click', () => document.getElementById('editPanel').classList.remove('open'));
+                document.getElementById('bgColorPicker').addEventListener('input', e => document.body.style.backgroundColor = e.target.value);
+                document.getElementById('logoUploader').addEventListener('change', e => { if (e.target.files[0]) handleImageUpload(e.target.files[0], (base64) => document.getElementById('companyLogo').src = base64); });
+                document.getElementById('saveChanges').addEventListener('click', () => {
+                    try { const newData = JSON.parse(document.getElementById('dataEditor').value); appData.systems = newData; document.getElementById('jsonError').classList.add('hidden'); } catch (e) { document.getElementById('jsonError').classList.remove('hidden'); return; }
+                    appData.bgColor = document.getElementById('bgColorPicker').value;
+                    appData.companyLogo = document.getElementById('companyLogo').src;
+                    saveState(); renderAll(); document.getElementById('editPanel').classList.remove('open');
+                });
+            };
+
+            const init = () => { 
+                loadState(); 
+                renderAll(); 
+                setupDashboardEventListeners();
+                setupEditPanelEventListeners();
+            };
+            init();
+        });
+    </script>
+</body>
+</html>
+
