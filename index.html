@@ -3,296 +3,496 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Plataforma de Dashboard de TI</title>
+    <title>Dashboard de Validade de Certificados</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --brand-green-dark: #166534;
-            --brand-green-light: #22c55e;
-            --glow-color: rgba(34, 197, 94, 0.5);
-            --bg-color: #2B652E;
+            --color-bg: #2A6D32;
+            --color-surface: #215931; /* Nova cor para os cards */
+            --color-primary-text: #FFFFFF;
+            --color-secondary-text: #E0E6F1;
+            --color-subtle-border: rgba(255, 255, 255, 0.15);
+
+            /* Cores de status mantidas */
+            --color-safe: #39FF14;      /* Verde neon para 90+ dias */
+            --color-attention: #FFD700; /* Amarelo/Ouro para 61-89 dias */
+            --color-warning: #FFA500;   /* Laranja para 31-60 dias */
+            --color-danger: #FF3131;    /* Vermelho para 1-30 dias */
+            --color-expired: #B0B0B0;   /* Cinza claro para Expirados */
         }
-        
+
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
-            background-image: 
-                radial-gradient(circle at 10% 20%, rgba(34, 197, 94, 0.2) 0%, transparent 40%),
-                radial-gradient(circle at 80% 90%, rgba(22, 101, 52, 0.2) 0%, transparent 40%);
-            min-height: 100vh;
-            color: #f3f4f6;
-            transition: background-color 0.3s ease;
+            background-color: var(--color-bg);
+            color: var(--color-secondary-text);
+            font-family: 'Roboto', sans-serif; /* Fonte profissional */
         }
 
-        .glass-card {
-            background-color: rgba(24, 24, 27, 0.5);
-            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 0.75rem; padding: 1.5rem;
-            position: relative; overflow: hidden;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        .card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-subtle-border);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+            transition: all 0.2s ease-in-out;
         }
-        .glass-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2); }
-        .glass-card::before {
-            content: ''; position: absolute;
-            width: 150px; height: 150px; border-radius: 50%;
-            background: var(--glow-color); filter: blur(80px);
-            opacity: 0; transition: opacity 0.5s ease;
-            top: var(--y, 0); left: var(--x, 0);
-            transform: translate(-50%, -50%); pointer-events: none;
-        }
-        .glass-card:hover::before { opacity: 1; }
 
-        @keyframes slideInUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        .animate-on-load { opacity: 0; animation-fill-mode: forwards; animation-name: slideInUp; animation-duration: 0.6s; animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.15), 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-ring-bg { stroke: rgba(0, 0, 0, 0.2); }
+        .status-ring-fg {
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1s ease-out, stroke 0.5s ease;
+        }
+
+        /* Cores do anel e texto */
+        .status-safe { stroke: var(--color-safe); }
+        .text-safe { color: var(--color-safe); }
+        .status-attention { stroke: var(--color-attention); }
+        .text-attention { color: var(--color-attention); }
+        .status-warning { stroke: var(--color-warning); }
+        .text-warning { color: var(--color-warning); }
+        .status-danger { stroke: var(--color-danger); }
+        .text-danger { color: var(--color-danger); }
+        .status-expired { stroke: var(--color-expired); }
+
+        .summary-box {
+            background: var(--color-surface);
+            border: 1px solid var(--color-subtle-border);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+        .summary-box:hover { background-color: #2c6e40; }
         
-        #editPanel { transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-        #editPanel.open { transform: translateX(0); }
-        #editPanel::-webkit-scrollbar { width: 6px; }
-        #editPanel::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); border-radius: 3px; }
-        #editPanel::-webkit-scrollbar-thumb { background: rgba(34, 197, 94, 0.6); border-radius: 3px; }
+        .summary-box.active-summary {
+            outline: 2px solid #98FB98;
+            outline-offset: 2px;
+            background-color: #2c6e40;
+        }
 
-        Chart.defaults.color = '#FFFFFF'; /* Cor branca para todo o texto do gráfico */
-        Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
-        Chart.defaults.plugins.legend.labels.boxWidth = 12; 
-        Chart.defaults.plugins.legend.labels.padding = 15;
-        Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(10, 10, 10, 0.8)'; 
-        Chart.defaults.plugins.tooltip.backdropFilter = 'blur(5px)';
-        Chart.defaults.plugins.tooltip.padding = 12; 
-        Chart.defaults.plugins.tooltip.cornerRadius = 8;
-        Chart.defaults.animation.duration = 1000; 
-        Chart.defaults.animation.easing = 'easeInOutQuart';
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        ::-webkit-scrollbar-thumb {
+            background-color: #98FB98;
+            border-radius: 10px;
+            border: 2px solid var(--color-bg);
+        }
+        
+        #sort-select {
+            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23cccccc%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 0.65em auto;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+
+        #sort-select option {
+            background: var(--color-surface);
+            color: white;
+        }
+
+        /* Estilos do Pop-up */
+        #alert-list::-webkit-scrollbar { width: 6px; }
+        #alert-list::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+        #alert-list::-webkit-scrollbar-thumb {
+            background-color: #98FB98;
+            border-radius: 6px;
+        }
+
+        #alert-popup.show { opacity: 1; }
+        #alert-popup.show #alert-content { transform: scale(1); }
+
     </style>
 </head>
-<body class="p-4 sm:p-6 lg:p-8">
+<body class="p-4 sm:p-6 md:p-8">
 
-    <div class="max-w-7xl mx-auto">
-        <main id="dashboardContent">
-            <header class="mb-8 flex items-center gap-4 animate-on-load" style="animation-delay: 100ms;">
-                <img id="companyLogo" src="" alt="Logo da Empresa" class="h-12 w-auto rounded-md shadow-lg">
+    <header class="text-center mb-8 md:mb-12">
+        <div class="flex justify-center items-center gap-4">
+            <img src="data:image/jpeg;base64,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" alt="Logo da Empresa" class="h-12 w-auto rounded-[10px]">
+            <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight">Painel de Certificados</h1>
+        </div>
+        <p class="text-center text-sm md:text-base text-gray-200 mt-2">Monitoramento de Validade em Tempo Real</p>
+    </header>
+
+    <main>
+        <section id="summary" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 md:mb-12">
+             <div data-filter="all" class="summary-box p-4 text-center cursor-pointer">
+                <h2 class="text-sm sm:text-base font-medium text-gray-300 uppercase tracking-wider">Total</h2>
+                <p id="total-count" class="text-3xl sm:text-4xl font-bold text-white">-</p>
+            </div>
+            <div data-filter="valid" class="summary-box p-4 text-center cursor-pointer">
+                <h2 class="text-sm sm:text-base font-medium uppercase tracking-wider" style="color: var(--color-safe);">Válidos</h2>
+                <p id="valid-count" class="text-3xl sm:text-4xl font-bold" style="color: var(--color-safe);">-</p>
+            </div>
+            <div data-filter="expiring" class="summary-box p-4 text-center cursor-pointer">
+                <h2 class="text-sm sm:text-base font-medium uppercase tracking-wider" style="color: var(--color-warning);">Vencendo</h2>
+                <p id="warning-count" class="text-3xl sm:text-4xl font-bold" style="color: var(--color-warning);">-</p>
+            </div>
+            <div data-filter="expired" class="summary-box p-4 text-center cursor-pointer">
+                <h2 class="text-sm sm:text-base font-medium uppercase tracking-wider" style="color: var(--color-danger);">Expirados</h2>
+                <p id="expired-count" class="text-3xl sm:text-4xl font-bold" style="color: var(--color-danger);">-</p>
+            </div>
+        </section>
+
+        <div class="mb-8 flex flex-col sm:flex-row gap-4">
+            <input type="text" id="search-input" placeholder="Buscar por Razão Social ou CNPJ..." class="w-full sm:flex-grow bg-black/20 border border-green-400/20 rounded-lg py-2 px-4 text-white placeholder-gray-400 focus:ring-2 focus:ring-green-300 focus:outline-none transition">
+            <select id="sort-select" class="w-full sm:w-auto bg-black/20 border border-green-400/20 rounded-lg py-2 px-4 text-white focus:ring-2 focus:ring-green-300 focus:outline-none transition">
+                <option value="expires_asc">Ordenar por Vencimento (Próximos)</option>
+                <option value="expires_desc">Ordenar por Vencimento (Distantes)</option>
+                <option value="name_asc">Ordenar por Nome (A-Z)</option>
+                <option value="name_desc">Ordenar por Nome (Z-A)</option>
+            </select>
+        </div>
+
+        <div id="certificates-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <!-- Cards gerados via JS -->
+        </div>
+    </main>
+    
+    <!-- Pop-up de Alerta -->
+    <div id="alert-popup" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 hidden z-50 transition-opacity duration-300 ease-in-out opacity-0">
+        <div id="alert-content" class="bg-[var(--color-surface)] w-full max-w-lg rounded-xl shadow-2xl p-6 transform transition-all duration-300 ease-in-out scale-95">
+            <div class="flex items-start justify-between">
                 <div>
-                     <h1 class="text-3xl font-extrabold text-white tracking-tight">Sistemas Ativos - Governança de TI</h1>
+                    <h2 class="text-xl font-bold text-white">Alerta de Vencimento</h2>
+                    <p class="text-sm text-gray-300 mt-1">Os seguintes certificados exigem sua atenção:</p>
                 </div>
-            </header>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div class="glass-card animate-on-load" style="animation-delay: 200ms;"><h2 class="text-xl font-semibold text-white">Total de Sistemas</h2><p id="totalSistemas" class="text-4xl font-bold text-white mt-2">0</p></div>
-                <div class="glass-card animate-on-load" style="animation-delay: 300ms;"><h2 class="text-xl font-semibold text-white">Total de Fornecedores</h2><p id="totalFornecedores" class="text-4xl font-bold text-white mt-2">0</p></div>
-                <div class="glass-card animate-on-load" style="animation-delay: 400ms;"><h2 class="text-xl font-semibold text-white">Total de Departamentos</h2><p id="totalDepartamentos" class="text-4xl font-bold text-white mt-2">0</p></div>
-                <div class="glass-card animate-on-load" style="animation-delay: 500ms;"><h2 class="text-xl font-semibold text-white">Contratos Recorrentes</h2><p id="totalRecorrentes" class="text-4xl font-bold text-white mt-2">0%</p></div>
+                <button id="close-popup-btn" class="text-gray-400 hover:text-white transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
             </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
-                <div class="glass-card lg:col-span-2 animate-on-load" style="animation-delay: 600ms;"><h3 class="text-xl font-semibold mb-4 text-center">Sistemas por Departamento</h3><canvas id="departmentChart"></canvas></div>
-                <div class="glass-card lg:col-span-3 animate-on-load" style="animation-delay: 700ms;"><h3 class="text-xl font-semibold mb-4 text-center">Sistemas por Fornecedor</h3><div class="h-80 sm:h-96"><canvas id="vendorChart"></canvas></div></div>
+            <div id="alert-list" class="mt-4 max-h-64 overflow-y-auto pr-2">
+                <!-- Lista de certificados a vencer será inserida aqui -->
             </div>
-
-            <div class="glass-card animate-on-load" style="animation-delay: 900ms;">
-                <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
-                    <div class="flex items-center gap-4"><h3 class="text-xl font-semibold">Todos os Sistemas</h3><button id="resetFilterBtn" class="hidden bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded-full text-sm transition-all">Mostrar Todos</button></div>
-                    <input type="text" id="searchInput" placeholder="Filtrar sistemas..." class="w-full sm:w-72 bg-gray-900/50 border border-gray-600 rounded-lg px-4 py-2 focus-outline-none focus:ring-2 focus:ring-green-500 text-white">
-                </div>
-                <div class="overflow-x-auto"><table class="w-full text-left"><thead class="border-b border-gray-600"><tr class="text-white"><th class="p-3">Fornecedor</th><th class="p-3">Sistema</th><th class="p-3">Departamento</th><th class="p-3">Tipo de Serviço</th></tr></thead><tbody id="systemsTable"></tbody></table></div>
-            </div>
-        </main>
+        </div>
     </div>
 
-    <button id="editModeToggle" class="fixed bottom-6 right-6 bg-green-600 hover:bg-green-500 text-white rounded-full p-4 shadow-lg transition-transform duration-300 hover:scale-110 focus:outline-none">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 0 2l-.15.08a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l-.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1 0-2l.15-.08a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-    </button>
-
-    <aside id="editPanel" class="fixed top-0 right-0 h-full w-96 bg-gray-900/80 backdrop-blur-lg shadow-2xl p-6 overflow-y-auto z-50">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold text-white">Modo Edição</h2>
-            <button id="closeEditPanel" class="text-gray-400 hover:text-white">&times;</button>
-        </div>
-        
-        <div class="space-y-6">
-            <div><label for="bgColorPicker" class="block text-sm font-medium text-white mb-2">Cor de Fundo</label><input type="color" id="bgColorPicker" class="w-full h-10 p-1 bg-gray-800 border border-gray-600 rounded-lg cursor-pointer"></div>
-            <div><label for="logoUploader" class="block text-sm font-medium text-white mb-2">Logo da Empresa</label><input type="file" id="logoUploader" accept="image/*" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-600 file:text-white hover:file:bg-green-700"></div>
-            <div><label for="dataEditor" class="block text-sm font-medium text-white mb-2">Dados (JSON)</label><textarea id="dataEditor" rows="10" class="w-full bg-gray-800 border border-gray-600 rounded-lg p-2 text-sm text-gray-300 font-mono focus:outline-none focus:ring-2 focus:ring-green-500"></textarea><p id="jsonError" class="text-red-500 text-xs mt-1 hidden">JSON inválido!</p></div>
-            <button id="saveChanges" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-all">Guardar e Atualizar Dashboard</button>
-        </div>
-    </aside>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            let appData = { systems: [], companyLogo: '', bgColor: '#2B652E' };
-            let departmentChart, vendorChart;
-            const companyColors = ['#22c55e', '#84cc16', '#eab308', '#14b8a6', '#6366f1', '#ec4899'];
+        const certificatesData = [
+            {"RAZAO SOCIAL": "Nova Caldas Adm Serv Hoteleiros Ltda (buzios)", "CNPJ / CPF": "24.832.586/0001-19", "Data Início": "2024-10-07", "Data Fim": "2025-10-07"},
+            {"RAZAO SOCIAL": "Nova Caldas Adm Serv Hoteleiros Ltda (boulevard)", "CNPJ / CPF": "24.832.586/0003-80", "Data Início": "2024-10-07", "Data Fim": "2025-10-07"},
+            {"RAZAO SOCIAL": "Wam Prive Administração Hoteleira Ltda (H Prive)", "CNPJ / CPF": "02.757.474/0001-08", "Data Início": "2024-10-07", "Data Fim": "2025-10-07"},
+            {"RAZAO SOCIAL": "Wam Prive Administração Hoteleira Ltda (C Prive)", "CNPJ / CPF": "02.757.474/0005-31", "Data Início": "2024-10-07", "Data Fim": "2025-10-07"},
+            {"RAZAO SOCIAL": "Wam Porto Seguro Administradora Hoteleira Ltda (H Ondas)", "CNPJ / CPF": "39.998.726/0001-09", "Data Início": "2024-10-16", "Data Fim": "2025-10-16"},
+            {"RAZAO SOCIAL": "W7 Brasil Negocios Inteligentes Ltda", "CNPJ / CPF": "26.649.045/0004-28", "Data Início": "2025-01-17", "Data Fim": "2026-01-17"},
+            {"RAZAO SOCIAL": "Wam Brasil Intermediacao De Negocios Sao Paulo Ltda", "CNPJ / CPF": "35.728.913/0001-03", "Data Início": "2025-01-17", "Data Fim": "2026-01-17"},
+            {"RAZAO SOCIAL": "Spe Vale Verde Empreendimento Imobiliario Ltda", "CNPJ / CPF": "33.337.272/0001-30", "Data Início": "2025-01-17", "Data Fim": "2026-01-17"},
+            {"RAZAO SOCIAL": "Wam Hotéis E Resorts Fortaleza Ltda", "CNPJ / CPF": "33.043.656/0001-40", "Data Início": "2025-01-17", "Data Fim": "2026-01-17"},
+            {"RAZAO SOCIAL": "WAM Hotéis e Resorts S/A (BR Trip Holding)", "CNPJ / CPF": "33.624.045/0001-96", "Data Início": "2025-03-17", "Data Fim": "2026-03-17"},
+            {"RAZAO SOCIAL": "WAM Hotéis Ltda (antiga EIP)", "CNPJ / CPF": "03.774.432/0001-48", "Data Início": "2025-03-17", "Data Fim": "2026-03-17"},
+            {"RAZAO SOCIAL": "Wam Hotéis Multipropriedade Ltda (antiga NGIC)", "CNPJ / CPF": "23.364.554/0001-73", "Data Início": "2025-03-17", "Data Fim": "2026-03-17"},
+            {"RAZAO SOCIAL": "WAM INCORPORACAO SA", "CNPJ / CPF": "29.855.842/0001-07", "Data Início": "2025-03-17", "Data Fim": "2026-03-17"},
+            {"RAZAO SOCIAL": "W7 BRASIL PARTICIPACOES E INVESTIMENTOS LTDA", "CNPJ / CPF": "33.889.071/0001-46", "Data Início": "2025-03-17", "Data Fim": "2026-03-17"},
+            {"RAZAO SOCIAL": "CLUBCIA VIAGENS E VANTAGENS LTDA", "CNPJ / CPF": "18.601.079/0002-52", "Data Início": "2025-03-17", "Data Fim": "2026-03-17"},
+            {"RAZAO SOCIAL": "SPE CABO BRANCO TURISMO E EMPREENDIMENTO IMOBILIA", "CNPJ / CPF": "57.687.144/0001-85", "Data Início": "2025-03-17", "Data Fim": "2026-03-17"},
+            {"RAZAO SOCIAL": "Wam Riviera Administração Hoteleira Ltda", "CNPJ / CPF": "17.870.348/0001-32", "Data Início": "2025-03-17", "Data Fim": "2026-03-17"},
+            {"RAZAO SOCIAL": "Wam Ilhas do Lago Administradora Ltda", "CNPJ / CPF": "28.580.024/0001-86", "Data Início": "2025-03-17", "Data Fim": "2026-03-17"},
+            {"RAZAO SOCIAL": "Wam Eda Administração Hoteleira", "CNPJ / CPF": "42.493.597/0001-01", "Data Início": "2025-03-17", "Data Fim": "2026-03-17"},
+            {"RAZAO SOCIAL": "Wam Comercialização S/A", "CNPJ / CPF": "17.919.649/0001-03", "Data Início": "2025-03-17", "Data Fim": "2026-03-17"},
+            {"RAZAO SOCIAL": "Wam Digital Ltda", "CNPJ / CPF": "37.545.196/0001-00", "Data Início": "2025-03-17", "Data Fim": "2026-03-17"},
+            {"RAZAO SOCIAL": "W7 Brasil Negocios Inteligentes Ltda", "CNPJ / CPF": "26.649.045/0001-85", "Data Início": "2025-03-17", "Data Fim": "2026-03-17"},
+            {"RAZAO SOCIAL": "Wam Brasil Intermediacao De Negocios Goias Ltda", "CNPJ / CPF": "35.670.358/0001-06", "Data Início": "2025-03-17", "Data Fim": "2026-03-17"},
+            {"RAZAO SOCIAL": "W7 Brasil Participacoes E Investimentos Fortaleza Ltda", "CNPJ / CPF": "35.649.777/0001-66", "Data Início": "2025-03-17", "Data Fim": "2026-03-17"},
+            {"RAZAO SOCIAL": "Dom Pedro Laguna Resort Empreendimentos Imobiliarios Ltda", "CNPJ / CPF": "41.928.634/0001-96", "Data Início": "2025-03-17", "Data Fim": "2026-03-17"},
+            {"RAZAO SOCIAL": "Clubcia Viagens E Vantagens Ltda.", "CNPJ / CPF": "18.601.079/0001-71", "Data Início": "2025-03-17", "Data Fim": "2026-03-17"},
+            {"RAZAO SOCIAL": "Wam Corretagem De Imoveis Ltda", "CNPJ / CPF": "35.561.514/0001-09", "Data Início": "2025-03-17", "Data Fim": "2026-03-17"},
+            {"RAZAO SOCIAL": "WAM BRASIL INTERMEDIACAO DE NEGOCIOS ALAGOAS LTDA", "CNPJ / CPF": "42.780.870/0001-70", "Data Início": "2025-03-17", "Data Fim": "2026-03-17"},
+            {"RAZAO SOCIAL": "Náutico Hotéis e Parques Ltda", "CNPJ / CPF": "05.513.549/0001-01", "Data Início": "2025-04-20", "Data Fim": "2026-04-20"},
+            {"RAZAO SOCIAL": "Eldorado Water Park Ltda", "CNPJ / CPF": "07.329.036/0001-62", "Data Início": "2025-04-20", "Data Fim": "2026-04-20"},
+            {"RAZAO SOCIAL": "Wam Praias do Lago Administradora Ltda", "CNPJ / CPF": "38.157.968/0001-07", "Data Início": "2025-04-20", "Data Fim": "2026-04-20"},
+            {"RAZAO SOCIAL": "WAM Hoteis e Resorts Fortaleza Ltda (Dom Pedro Laguna)", "CNPJ / CPF": "33.043.656/0001-40", "Data Início": "2025-04-20", "Data Fim": "2026-04-20"},
+            {"RAZAO SOCIAL": "WAM Hoteis e Resorts Fortaleza Ltda (Filial) Resort Do Lago", "CNPJ / CPF": "33.043.656/0002-21", "Data Início": "2025-04-20", "Data Fim": "2026-04-20"},
+            {"RAZAO SOCIAL": "Wam Fidelidade S.A", "CNPJ / CPF": "38.827.558/0001-18", "Data Início": "2025-04-20", "Data Fim": "2026-04-20"},
+            {"RAZAO SOCIAL": "W 60 Empreendimentos Imobiliarios Ltda", "CNPJ / CPF": "33.651.640/0001-10", "Data Início": "2025-04-20", "Data Fim": "2026-04-20"},
+            {"RAZAO SOCIAL": "W 30 Empreeendimentos Imobiliarios Ltda", "CNPJ / CPF": "30.157.207/0001-35", "Data Início": "2025-04-20", "Data Fim": "2026-04-20"},
+            {"RAZAO SOCIAL": "Wpa Gestao Ltda", "CNPJ / CPF": "23.815.961/0001-50", "Data Início": "2025-04-20", "Data Fim": "2026-04-20"},
+            {"RAZAO SOCIAL": "ESCOLA DE FORMACAO WAM LTDA", "CNPJ / CPF": "27.165.092/0001-16", "Data Início": "2025-04-20", "Data Fim": "2026-04-20"},
+            {"RAZAO SOCIAL": "ILHAS DO LAGO INCORPORACAO SPE SA", "CNPJ / CPF": "15.797.526/0001-11", "Data Início": "2025-04-20", "Data Fim": "2026-04-20"},
+            {"RAZAO SOCIAL": "WAM BRASIL INTERMEDIACAO DE NEGOCIOS RIO GRANDE D", "CNPJ / CPF": "35.169.129/0001-02", "Data Início": "2025-04-20", "Data Fim": "2026-04-20"},
+            {"RAZAO SOCIAL": "WAM CALDAS NOVAS LTDA", "CNPJ / CPF": "51.066.941/0001-69", "Data Início": "2025-04-20", "Data Fim": "2026-04-20"},
+            {"RAZAO SOCIAL": "WAM HOTEIS E RESORTS ADMINISTRADORA LTDA", "CNPJ / CPF": "33.043.656/0003-02", "Data Início": "2025-04-20", "Data Fim": "2026-04-20"},
+            {"RAZAO SOCIAL": "Kawana Park Ltda", "CNPJ / CPF": "42.933.773/0001-70", "Data Início": "2025-05-20", "Data Fim": "2026-05-20"},
+            {"RAZAO SOCIAL": "Projuris", "CNPJ / CPF": "-", "Data Início": "2025-07-28", "Data Fim": "2027-07-22"},
+            {"RAZAO SOCIAL": "Solar Pedra Da Ilha Adm Hot Ltda", "CNPJ / CPF": "37.751.772/0001-75", "Data Início": "2025-01-17", "Data Fim": "2026-01-17"},
+            {"RAZAO SOCIAL": "Solar Pedra da Ilha Administração Hoteleira Ltda", "CNPJ / CPF": "37.751.772/0001-75", "Data Início": "2024-10-16", "Data Fim": "2025-10-16"},
+            {"RAZAO SOCIAL": "Estancia Thermas Prive Caldas (Soc.Civil)", "CNPJ / CPF": "02.666.733/0001-95", "Data Início": "2020-02-06", "Data Fim": "2021-02-05"},
+            {"RAZAO SOCIAL": "Nautico Praia Clube (Soc.Civil)", "CNPJ / CPF": "05.802.503/0001-02", "Data Início": "2022-05-13", "Data Fim": "2023-05-13"},
+            {"RAZAO SOCIAL": "WAM Hoteis e Resorts Blue Mountain Ltda (P Blue Mountain)", "CNPJ / CPF": "36.263.260/0001-05", "Data Início": "2023-04-15", "Data Fim": "2024-04-14"},
+            {"RAZAO SOCIAL": "Water Park Sao Pedro Empreendimentos Imobiliarios Ltda", "CNPJ / CPF": "28.633.654/0001-71", "Data Início": "2023-11-27", "Data Fim": "2024-11-26"},
+            {"RAZAO SOCIAL": "Spe Porto Seguro 02 Empreendimentos Imobiliários S.A", "CNPJ / CPF": "22.059.167/0001-60", "Data Início": "2023-11-27", "Data Fim": "2024-11-26"},
+            {"RAZAO SOCIAL": "W 50 Empreendimentos Imobiliarios Ltda", "CNPJ / CPF": "33.770.634/0001-82", "Data Início": "2023-11-27", "Data Fim": "2024-11-26"},
+            {"RAZAO SOCIAL": "Malibu Construtora E Incorporadora Ltda", "CNPJ / CPF": "05.456.126/0001-99", "Data Início": "2023-11-27", "Data Fim": "2024-11-26"},
+            {"RAZAO SOCIAL": "Refugio Das Lontras Pousada Empreendimentos Imobiliarios Ltda", "CNPJ / CPF": "41.402.028/0001-32", "Data Início": "2023-11-27", "Data Fim": "2024-11-26"},
+        ];
+        
+        const grid = document.getElementById('certificates-grid');
+        const searchInput = document.getElementById('search-input');
+        const sortSelect = document.getElementById('sort-select');
+        const summarySection = document.getElementById('summary');
+        const alertPopup = document.getElementById('alert-popup');
+        const alertContent = document.getElementById('alert-content');
+        const alertList = document.getElementById('alert-list');
+        const closePopupBtn = document.getElementById('close-popup-btn');
 
-            const defaultData = {
-                systems: [
-                    { fornecedor: "ASSOCIATED SOFTWARE COMPANY LTDA", sistema: "Omnichannel", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Omnichannel" },
-                    { fornecedor: "BEEZPAY TRAVEL SOLUTIONS S.A", sistema: "Travel Omnibees", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Sistema de Vendas" },
-                    { fornecedor: "BENNER SISTEMAS SA", sistema: "Benner", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "ERP Benner" },
-                    { fornecedor: "BUYSOFT DO BRASIL LTDA", sistema: "Azure", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Azure" },
-                    { fornecedor: "DIGITRO TECNOLOGIA S.A.", sistema: "Digitro", departamento: "Infraestrutura e Suporte", modalidade: "Recorrente", tipo: "Central Telefonica" },
-                    { fornecedor: "E-SOLUTION TECNOLOGIA E INOVACAO LTDA", sistema: "Acces Center", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Mensalidade sistema" },
-                    { fornecedor: "E-SOLUTION TECNOLOGIA E INOVACAO LTDA", sistema: "Portal", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Mensalidade sistema" },
-                    { fornecedor: "GUARDIAO DIGITAL GESTAO DO CONHECIMENTO LTDA", sistema: "GED Guardiao Digital", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "GED WAM" },
-                    { fornecedor: "LIGHTHOUSE", sistema: "Lighthouse", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Sistema de reservas" },
-                    { fornecedor: "NIARA SOLUCOES EM TECNOLOGIA LTDA", sistema: "Niara pay", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Sistema de motor de vendas" },
-                    { fornecedor: "PLUSPOINT INC.", sistema: "Plataforma de Gestao", departamento: "Governança de TI", modalidade: "Recorrente", tipo: "Sistema de gestão de reputação online" },
-                    { fornecedor: "SOFTPLAN PLANEJAMENTO E SISTEMAS S/A", sistema: "Sienge", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "ERP Sienge" },
-                    { fornecedor: "TIVIT TECNOLOGIA S/A", sistema: "SensorIT", departamento: "Governança de TI", modalidade: "Recorrente", tipo: "Sistema de governança de TI" },
-                    { fornecedor: "UNE CONNECT LTDA", sistema: "Hotspot", departamento: "Infraestrutura e Suporte", modalidade: "Recorrente", tipo: "Sistema de Gestão Hot Spot" },
-                    { fornecedor: "UNE CONNECT LTDA", sistema: "Cardapio Digital", departamento: "Infraestrutura e Suporte", modalidade: "Recorrente", tipo: "Sistema de Gestão Hot Spot" },
-                    { fornecedor: "VVMDR ASSESSORIA EM TURISMO EIRELI", sistema: "Omnibees", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Mensalidade sistema I.O." },
-                    { fornecedor: "OPENAI", sistema: "IA", departamento: "Inovação e IA", modalidade: "Recorrente", tipo: "OpenAI" },
-                    { fornecedor: "ANTROPIC", sistema: "IA", departamento: "Inovação e IA", modalidade: "Recorrente", tipo: "Antropic" },
-                    { fornecedor: "DEEP SEEK", sistema: "IA", departamento: "Inovação e IA", modalidade: "Recorrente", tipo: "Deep Seek" },
-                    { fornecedor: "GOOGLE ONE + GEMINI", sistema: "IA", departamento: "Inovação e IA", modalidade: "Recorrente", tipo: "Google One + Gemini" },
-                    { fornecedor: "CHAT GPT PRÓ", sistema: "IA", departamento: "Inovação e IA", modalidade: "Recorrente", tipo: "Chat GPT Pró" },
-                    { fornecedor: "SUPABASE", sistema: "IA", departamento: "Inovação e IA", modalidade: "Recorrente", tipo: "SUPABASE" },
-                    { fornecedor: "EVADESK LTDA", sistema: "IA", departamento: "Inovação e IA", modalidade: "Recorrente", tipo: "Evadesk" },
-                    { fornecedor: "MGC LTDA", sistema: "IA", departamento: "Inovação e IA", modalidade: "Recorrente", tipo: "MGC" },
-                    { fornecedor: "SW SOLUCOES INTEGRADAS LTDA", sistema: "Banco de Dados", departamento: "Inovação e IA", modalidade: "Recorrente", tipo: "Cloud" },
-                    { fornecedor: "AMAZON AWS SERVIÇOS BRASIL LTDA.", sistema: "Banco de dados AWS", departamento: "Infraestrutura e Suporte", modalidade: "Recorrente", tipo: "AWS" },
-                    { fornecedor: "RD", sistema: "RSSTATION", departamento: "Marketing", modalidade: "Recorrente", tipo: "automação de MKT" },
-                    { fornecedor: "EVA DESK", sistema: "EVADESK", departamento: "Marketing", modalidade: "Recorrente", tipo: "CRM e Chatbot IA" },
-                    { fornecedor: "SAFETYMAILS", sistema: "Safety", departamento: "Marketing", modalidade: "Recorrente", tipo: "disparo de e-mails" },
-                    { fornecedor: "Active Campaing", sistema: "Active Campaing", departamento: "Marketing", modalidade: "Recorrente", tipo: "CRM automação de mkt" },
-                    { fornecedor: "Autodesk/Buysoft", sistema: "AUTOCAD", departamento: "Arquitetura e Infraestrutura", modalidade: "Recorrente", tipo: "Plataforma de projetos de engenharia" },
-                    { fornecedor: "PROJURIS", sistema: "Projuris", departamento: "Jurídico", modalidade: "Recorrente", tipo: "Plataforma jurídica de doc." }
-                ],
-               companyLogo: `data:image/jpeg;base64,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`,
-                bgColor: '#2B652E'
-            };
+        let intervalId;
+        let currentStatusFilter = 'all';
+        
+        const parseDate = (dateString) => {
+            if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return null;
+            return new Date(`${dateString}T00:00:00`);
+        };
 
-            const saveState = () => { try { localStorage.setItem('dashboardState', JSON.stringify(appData)); } catch (e) { console.error("Erro ao guardar no localStorage:", e); } };
-            
-            const loadState = () => {
-                const storedState = localStorage.getItem('dashboardState');
-                if (storedState) {
-                    appData = JSON.parse(storedState);
-                    if (appData.companyLogo && appData.companyLogo.startsWith('data:image')) {
-                        appData.companyLogo = defaultData.companyLogo;
-                    }
-                } else {
-                    appData = JSON.parse(JSON.stringify(defaultData));
+        const sortData = (data, sortBy) => {
+            return [...data].sort((a, b) => {
+                const now = new Date();
+                const dateA = parseDate(a['Data Fim'])?.getTime() || now.getTime();
+                const dateB = parseDate(b['Data Fim'])?.getTime() || now.getTime();
+                const nameA = a['RAZAO SOCIAL'].toLowerCase();
+                const nameB = b['RAZAO SOCIAL'].toLowerCase();
+                const diffA = dateA - now.getTime();
+                const diffB = dateB - now.getTime();
+                if (diffA <= 0 && diffB <= 0) {
+                    return sortBy === 'expires_asc' ? dateA - dateB : dateB - dateA;
                 }
-            };
+                switch (sortBy) {
+                    case 'expires_asc': return dateA - dateB;
+                    case 'expires_desc': return dateB - dateA;
+                    case 'name_asc': return nameA.localeCompare(nameB);
+                    case 'name_desc': return nameB.localeCompare(nameA);
+                    default: return 0;
+                }
+            });
+        };
 
-            const applyStyling = () => {
-                document.body.style.backgroundColor = appData.bgColor;
-                document.getElementById('companyLogo').src = appData.companyLogo;
-            };
+        const renderCards = () => {
+            grid.innerHTML = '';
+            const searchTerm = searchInput.value.toLowerCase();
+            const sortBy = sortSelect.value;
+            const now = new Date();
+            let statusFilteredData = certificatesData.filter(cert => {
+                const endDate = parseDate(cert['Data Fim']);
+                if (!endDate) return currentStatusFilter === 'all';
+                const diff = endDate.getTime() - now.getTime();
+                const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                
+                if (currentStatusFilter === 'expired') return diff <= 0;
+                if (currentStatusFilter === 'expiring') return diff > 0 && daysLeft <= 90;
+                if (currentStatusFilter === 'valid') return diff > 0 && daysLeft > 90;
+                
+                return true; // para o filtro 'all'
+            });
 
-            const animateCountUp = (el, end, duration = 1500) => {
-                let start = 0, range = end - start, current = start, increment = end > start ? 1 : -1;
-                const stepTime = Math.abs(Math.floor(duration / range));
-                const timer = setInterval(() => {
-                    current += increment;
-                    el.innerHTML = el.id === 'totalRecorrentes' ? `${Math.ceil(current)}%` : Math.ceil(current);
-                    if (current == end) clearInterval(timer);
-                }, stepTime > 0 ? stepTime : 1);
-            };
+            let searchFilteredData = statusFilteredData.filter(cert =>
+                cert['RAZAO SOCIAL'].toLowerCase().includes(searchTerm) ||
+                cert['CNPJ / CPF'].toLowerCase().includes(searchTerm)
+            );
+            let sortedData = sortData(searchFilteredData, sortBy);
+            if (sortedData.length === 0) {
+                grid.innerHTML = `<p class="text-gray-300 col-span-full text-center py-10">Nenhum certificado corresponde aos filtros selecionados.</p>`;
+                return;
+            }
+            sortedData.forEach((cert, index) => {
+                const card = document.createElement('div');
+                card.className = 'card p-5 flex flex-col justify-between fade-in';
+                card.style.animationDelay = `${index * 40}ms`;
+                card.dataset.startDate = cert['Data Início'];
+                card.dataset.endDate = cert['Data Fim'];
+                const endDate = parseDate(cert['Data Fim']);
+                card.innerHTML = `
+                    <div>
+                        <h3 class="font-bold text-base text-white truncate" title="${cert['RAZAO SOCIAL']}">${cert['RAZAO SOCIAL']}</h3>
+                        <p class="text-sm text-gray-300 mb-4">${cert['CNPJ / CPF']}</p>
+                    </div>
+                    <div class="flex items-center justify-between mt-4">
+                        <div class="flex-grow">
+                            <p class="text-xs text-gray-400">Expira em:</p>
+                            <p class="font-medium text-base">${endDate ? endDate.toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'Data Inválida'}</p>
+                            <div class="countdown-timer text-sm font-medium">Calculando...</div>
+                        </div>
+                        <div class="relative w-20 h-20">
+                            <svg class="w-full h-full" viewBox="0 0 100 100">
+                                <circle class="status-ring-bg" cx="50" cy="50" r="45" stroke-width="10" fill="transparent"></circle>
+                                <circle class="status-ring-fg" cx="50" cy="50" r="45" stroke-width="10" fill="transparent"
+                                        stroke-dasharray="282.74" stroke-dashoffset="282.74"></circle>
+                            </svg>
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <span class="days-left-ring text-xl font-bold">-</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            updateTimers();
+        };
+        
+        const updateSummary = () => {
+             const now = new Date();
+             let validCount = 0;
+             let warningCount = 0;
+             let expiredCount = 0;
+             certificatesData.forEach(cert => {
+                 const endDate = parseDate(cert['Data Fim']);
+                 if (!endDate) return;
+                 const diff = endDate.getTime() - now.getTime();
+                 const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                 if (diff <= 0) {
+                     expiredCount++;
+                 } else {
+                     if (daysLeft <= 90) {
+                         warningCount++;
+                     } else {
+                         validCount++;
+                     }
+                 }
+             });
+             document.getElementById('total-count').textContent = certificatesData.length;
+             document.getElementById('valid-count').textContent = validCount;
+             document.getElementById('warning-count').textContent = warningCount;
+             document.getElementById('expired-count').textContent = expiredCount;
+        };
+
+        const updateTimers = () => {
+            const now = new Date();
+            document.querySelectorAll('.card').forEach(card => {
+                const timer = card.querySelector('.countdown-timer');
+                const ring = card.querySelector('.status-ring-fg');
+                const daysLeftRing = card.querySelector('.days-left-ring');
+                const endDate = parseDate(card.dataset.endDate);
+                if (!endDate) {
+                    timer.innerHTML = '<span class="text-gray-400">Inválido</span>';
+                    return;
+                }
+                const diff = endDate.getTime() - now.getTime();
+                const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                let statusClass = 'status-expired';
+                let daysForRing = 'X';
+                let progress = 0;
+                if (diff > 0) {
+                    const startDate = parseDate(card.dataset.startDate);
+                    const totalDuration = startDate ? (endDate.getTime() - startDate.getTime()) : (365 * 24 * 60 * 60 * 1000);
+                    const timeLeft = totalDuration > 0 ? endDate.getTime() - now.getTime() : 0;
+                    progress = totalDuration > 0 ? Math.max(0, timeLeft / totalDuration) : 0;
+                    daysForRing = daysLeft;
+                    if (daysLeft <= 30) statusClass = 'status-danger';
+                    else if (daysLeft <= 60) statusClass = 'status-warning';
+                    else if (daysLeft < 90) statusClass = 'status-attention';
+                    else statusClass = 'status-safe';
+                    const s = Math.floor((diff / 1000) % 60).toString().padStart(2, '0');
+                    const m = Math.floor((diff / 1000 / 60) % 60).toString().padStart(2, '0');
+                    const h = Math.floor((diff / (1000 * 60 * 60)) % 24).toString().padStart(2, '0');
+                    const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    timer.innerHTML = `<span class="${statusClass.replace('status-', 'text-')}">${d}d ${h}:${m}:${s}</span>`;
+                } else {
+                    timer.innerHTML = `<span style="color: var(--color-expired)">Expirado</span>`;
+                }
+                ring.classList.remove('status-safe', 'status-attention', 'status-warning', 'status-danger', 'status-expired');
+                ring.classList.add(statusClass);
+                const circumference = 282.74;
+                ring.style.strokeDashoffset = circumference * (1 - progress);
+                daysLeftRing.textContent = daysForRing;
+            });
+        };
+
+        const applyFilter = (filterValue) => {
+            currentStatusFilter = filterValue;
             
-            const aggregateData = (data, key) => data.reduce((acc, item) => { acc[item[key]] = (acc[item[key]] || 0) + 1; return acc; }, {});
+            // Sincroniza o estado ativo dos cards de resumo
+            document.querySelectorAll('#summary .summary-box').forEach(box => {
+                box.classList.toggle('active-summary', box.dataset.filter === filterValue);
+            });
 
-            const updateVendorChart = (data) => {
-                const vendorData = aggregateData(data, 'fornecedor');
-                const sortedVendorData = Object.entries(vendorData).sort(([,a],[,b]) => b - a);
-                vendorChart.data.labels = sortedVendorData.map(item => item[0]);
-                vendorChart.data.datasets[0].data = sortedVendorData.map(item => item[1]);
-                vendorChart.update();
-            };
+            renderCards();
+        };
 
-            const renderAll = () => {
-                if (departmentChart) departmentChart.destroy();
-                if (vendorChart) vendorChart.destroy();
+        const checkAndShowAlerts = () => {
+            const now = new Date();
+            const expiringCerts = certificatesData.filter(cert => {
+                const endDate = parseDate(cert['Data Fim']);
+                if (!endDate) return false;
+                const diff = endDate.getTime() - now.getTime();
+                if (diff <= 0) return false;
+                const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                return daysLeft <= 30;
+            });
+
+            if (expiringCerts.length > 0) {
+                alertList.innerHTML = '';
+                expiringCerts
+                    .sort((a, b) => parseDate(a['Data Fim']) - parseDate(b['Data Fim']))
+                    .forEach(cert => {
+                        const endDate = parseDate(cert['Data Fim']);
+                        const diff = endDate.getTime() - now.getTime();
+                        const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                        const listItem = document.createElement('div');
+                        listItem.className = 'p-3 mb-2 bg-black/20 rounded-lg text-sm';
+                        listItem.innerHTML = `
+                            <p class="font-bold text-white truncate">${cert['RAZAO SOCIAL']}</p>
+                            <p class="text-danger font-semibold">Vence em ${daysLeft} dia(s)</p>
+                        `;
+                        alertList.appendChild(listItem);
+                    });
                 
-                applyStyling();
+                alertPopup.classList.remove('hidden');
+                setTimeout(() => {
+                    alertPopup.classList.add('show');
+                }, 10);
+            }
+        };
 
-                const { systems } = appData;
-                if (!systems || systems.length === 0) return;
+        const closePopup = () => {
+            alertPopup.classList.remove('show');
+            setTimeout(() => {
+                alertPopup.classList.add('hidden');
+            }, 300);
+        };
 
-                animateCountUp(document.getElementById('totalSistemas'), systems.length);
-                animateCountUp(document.getElementById('totalFornecedores'), new Set(systems.map(i => i.fornecedor)).size);
-                animateCountUp(document.getElementById('totalDepartamentos'), new Set(systems.map(i => i.departamento)).size);
-                animateCountUp(document.getElementById('totalRecorrentes'), systems.length > 0 ? (systems.filter(i => i.modalidade === 'Recorrente').length / systems.length * 100) : 0);
+        closePopupBtn.addEventListener('click', closePopup);
+        alertPopup.addEventListener('click', (e) => {
+            if (e.target === alertPopup) {
+                closePopup();
+            }
+        });
+        
+        summarySection.addEventListener('click', (e) => {
+            const box = e.target.closest('.summary-box[data-filter]');
+            if (box) {
+                applyFilter(box.dataset.filter);
+            }
+        });
 
-                const departmentData = aggregateData(systems, 'departamento');
-                departmentChart = new Chart(document.getElementById('departmentChart').getContext('2d'), { type: 'doughnut', data: { labels: Object.keys(departmentData), datasets: [{ data: Object.values(departmentData), backgroundColor: companyColors, borderColor: '#18181b' }] }, options: { responsive: true, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { color: '#FFFFFF' } } } } });
-                
-                const vendorData = aggregateData(systems, 'fornecedor');
-                const sortedVendorData = Object.entries(vendorData).sort(([,a],[,b]) => b - a);
-                vendorChart = new Chart(document.getElementById('vendorChart').getContext('2d'), { type: 'bar', data: { labels: sortedVendorData.map(item => item[0]), datasets: [{ label: 'Nº de Sistemas', data: sortedVendorData.map(item => item[1]), backgroundColor: companyColors[0], borderWidth: 1, borderRadius: 4 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(255, 255, 255, 0.1)' }, ticks: { color: '#FFFFFF', precision: 0 } }, y: { grid: { display: false }, ticks: { color: '#FFFFFF' } } } } });
+        searchInput.addEventListener('input', renderCards);
+        sortSelect.addEventListener('change', renderCards);
 
-                renderTable(appData.systems);
-                setupDashboardEventListeners();
-            };
-            
-            const renderTable = (dataToRender) => {
-                const tableBody = document.getElementById('systemsTable');
-                tableBody.innerHTML = dataToRender.length > 0 ? dataToRender.map(item => `<tr class="border-b border-gray-700/50 hover:bg-gray-800/50 transition-colors duration-200"><td class="p-3">${item.fornecedor}</td><td class="p-3">${item.sistema}</td><td class="p-3">${item.departamento}</td><td class="p-3">${item.tipo}</td></tr>`).join('') : `<tr><td colspan="4" class="p-4 text-center text-gray-400">Nenhum sistema encontrado.</td></tr>`;
-            };
-
-            const populateEditPanel = () => {
-                document.getElementById('bgColorPicker').value = appData.bgColor;
-                document.getElementById('dataEditor').value = JSON.stringify(appData.systems, null, 2);
-            };
-
-            const handleImageUpload = (file, callback) => { const reader = new FileReader(); reader.onload = e => callback(e.target.result); reader.readAsDataURL(file); };
-
-            const setupDashboardEventListeners = () => {
-                document.querySelectorAll('.glass-card').forEach(card => card.addEventListener('mousemove', e => { const rect = card.getBoundingClientRect(); card.style.setProperty('--x', `${e.clientX - rect.left}px`); card.style.setProperty('--y', `${e.clientY - rect.top}px`); }));
-                
-                document.getElementById('searchInput').addEventListener('input', e => { 
-                    const searchTerm = e.target.value.toLowerCase(); 
-                    const filteredSystems = appData.systems.filter(item => Object.values(item).some(val => String(val).toLowerCase().includes(searchTerm)));
-                    renderTable(filteredSystems);
-                    updateVendorChart(filteredSystems); // Opcional: filtrar gráfico de fornecedor ao pesquisar
-                    document.getElementById('resetFilterBtn').classList.add('hidden'); 
-                });
-
-                document.getElementById('departmentChart').onclick = (evt) => { 
-                    const points = departmentChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true); 
-                    if (points.length) { 
-                        const label = departmentChart.data.labels[points[0].index]; 
-                        const filteredSystems = appData.systems.filter(item => item.departamento === label);
-                        renderTable(filteredSystems);
-                        updateVendorChart(filteredSystems);
-                        document.getElementById('resetFilterBtn').classList.remove('hidden'); 
-                    } 
-                };
-
-                document.getElementById('resetFilterBtn').onclick = () => { 
-                    renderTable(appData.systems); 
-                    updateVendorChart(appData.systems);
-                    document.getElementById('resetFilterBtn').classList.add('hidden'); 
-                    document.getElementById('searchInput').value = ''; 
-                };
-            };
-
-            const setupEditPanelEventListeners = () => {
-                document.getElementById('editModeToggle').addEventListener('click', () => { document.getElementById('editPanel').classList.add('open'); populateEditPanel(); });
-                document.getElementById('closeEditPanel').addEventListener('click', () => document.getElementById('editPanel').classList.remove('open'));
-                document.getElementById('bgColorPicker').addEventListener('input', e => document.body.style.backgroundColor = e.target.value);
-                document.getElementById('logoUploader').addEventListener('change', e => { if (e.target.files[0]) handleImageUpload(e.target.files[0], (base64) => document.getElementById('companyLogo').src = base64); });
-                document.getElementById('saveChanges').addEventListener('click', () => {
-                    try { const newData = JSON.parse(document.getElementById('dataEditor').value); appData.systems = newData; document.getElementById('jsonError').classList.add('hidden'); } catch (e) { document.getElementById('jsonError').classList.remove('hidden'); return; }
-                    appData.bgColor = document.getElementById('bgColorPicker').value;
-                    appData.companyLogo = document.getElementById('companyLogo').src;
-                    saveState(); renderAll(); document.getElementById('editPanel').classList.remove('open');
-                });
-            };
-
-            const init = () => { 
-                loadState(); 
-                renderAll(); 
-                setupDashboardEventListeners();
-                setupEditPanelEventListeners();
-            };
-            init();
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelector('.summary-box[data-filter="all"]').classList.add('active-summary');
+            updateSummary();
+            renderCards();
+            checkAndShowAlerts();
+            if (intervalId) clearInterval(intervalId);
+            intervalId = setInterval(() => {
+                updateTimers();
+                updateSummary();
+            }, 1000);
         });
     </script>
 </body>
 </html>
-
 
