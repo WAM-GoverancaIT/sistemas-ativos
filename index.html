@@ -101,8 +101,26 @@
                 <div class="glass-card lg:col-span-2 animate-on-load" style="animation-delay: 900ms;"><h3 class="text-xl font-semibold mb-4 text-center">Custo Anual por Departamento</h3><canvas id="departmentCostChart"></canvas></div>
             </div>
 
-            <!-- Linha 4: Tabela de Sistemas -->
-            <div class="glass-card animate-on-load" style="animation-delay: 1000ms;">
+            <!-- LINHA 4: NOVO GRÁFICO COMPARADOR DE FORNECEDOR -->
+            <div class="glass-card animate-on-load mb-8" style="animation-delay: 950ms;">
+                <h3 class="text-xl font-semibold mb-4 text-center">Comparador de Custo Mensal por Fornecedor</h3>
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <!-- Lista de Checkbox -->
+                    <div class="lg:col-span-1 h-96 overflow-y-auto pr-2">
+                        <h4 class="text-lg font-semibold mb-3 text-white">Selecione (máx 8)</h4>
+                        <div id="supplierCheckboxContainer" class="space-y-2">
+                            <!-- Checkboxes serão injetados aqui via JS -->
+                        </div>
+                    </div>
+                    <!-- Gráfico -->
+                    <div class="lg:col-span-3 h-96">
+                        <canvas id="supplierMonthlyCostChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Linha 5: Tabela de Sistemas (era Linha 4) -->
+            <div class="glass-card animate-on-load" style="animation-delay: 1100ms;">
                 <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
                     <div class="flex items-center gap-4"><h3 class="text-xl font-semibold">Todos os Sistemas</h3><button id="resetFilterBtn" class="hidden bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded-full text-sm transition-all">Mostrar Todos</button></div>
                     <input type="text" id="searchInput" placeholder="Filtrar sistemas..." class="w-full sm:w-72 bg-gray-900/50 border border-gray-600 rounded-lg px-4 py-2 focus-outline-none focus:ring-2 focus:ring-green-500 text-white">
@@ -172,8 +190,9 @@
             };
 
             // Gráficos
-            let departmentChart, vendorChart, monthlyCostChart, departmentCostChart;
+            let departmentChart, vendorChart, monthlyCostChart, departmentCostChart, supplierMonthlyCostChart;
             let totalMonthlyCostData = []; // Armazena os dados totais para resetar
+            let departmentColorMap = {}; // NOVO: Mapa para cores consistentes por departamento
             const companyColors = ['#22c55e', '#84cc16', '#eab308', '#14b8a6', '#6366f1', '#ec4899', '#f97316', '#3b82f6'];
             const monthLabels = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 
@@ -380,6 +399,7 @@
                 if (vendorChart) vendorChart.destroy();
                 if (monthlyCostChart) monthlyCostChart.destroy();
                 if (departmentCostChart) departmentCostChart.destroy();
+                if (supplierMonthlyCostChart) supplierMonthlyCostChart.destroy();
                 
                 // Combina os dados de sistemas e custos
                 enrichSystemsData();
@@ -387,6 +407,14 @@
                 const { systems, costs, enrichedSystems } = appData;
 
                 applyStyling();
+
+                // NOVO: Gerar mapa de cores para departamentos
+                departmentColorMap = {}; // Limpa o mapa para o caso de os dados mudarem (JSON edit)
+                const allDepartments = [...new Set(systems.map(s => s.departamento))].sort(); // Pega todos os deptos únicos e ordena
+                allDepartments.forEach((dept, index) => {
+                    departmentColorMap[dept] = companyColors[index % companyColors.length];
+                });
+                // FIM NOVO
 
                 if (!systems || systems.length === 0) return;
 
@@ -401,11 +429,18 @@
 
                 // --- Renderizar Gráficos de Contagem ---
                 const departmentData = aggregateData(systems, 'departamento');
+                const deptLabels = Object.keys(departmentData); // Pega os labels
+                const deptColors = deptLabels.map(label => departmentColorMap[label]); // Mapeia para cores
+
                 departmentChart = new Chart(document.getElementById('departmentChart').getContext('2d'), { 
                     type: 'doughnut', 
                     data: { 
-                        labels: Object.keys(departmentData), 
-                        datasets: [{ data: Object.values(departmentData), backgroundColor: companyColors, borderColor: '#18181b' }] 
+                        labels: deptLabels, // Usa os labels
+                        datasets: [{ 
+                            data: Object.values(departmentData), 
+                            backgroundColor: deptColors, // Usa as cores mapeadas
+                            borderColor: '#18181b' 
+                        }] 
                     }, 
                     options: { responsive: true, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { color: '#FFFFFF' } } } } 
                 });
@@ -463,6 +498,10 @@
                 // Gráfico 2: Custo Anual por Departamento (Baseado nos dados enriquecidos)
                 updateDepartmentCostChart(enrichedSystems);
 
+                // NOVO: Renderizar gráfico de custo mensal por fornecedor
+                // renderSupplierMonthlyCostChart(costs); // <- Removido
+                populateSupplierCheckboxes();
+                createEmptySupplierChart();
 
                 // --- Renderizar Tabela ---
                 renderTable(enrichedSystems);
@@ -519,11 +558,14 @@
 
                 const sortedDepartmentCostData = Object.entries(departmentCostData).sort(([,a],[,b]) => b - a);
 
+                const costLabels = sortedDepartmentCostData.map(item => item[0]); // Pega os labels
+                const costColors = costLabels.map(label => departmentColorMap[label] || '#cccccc'); // Mapeia para cores, com um fallback
+
                 const chartData = {
-                    labels: sortedDepartmentCostData.map(item => item[0]),
+                    labels: costLabels, // Usa os labels
                     datasets: [{
                         data: sortedDepartmentCostData.map(item => item[1]),
-                        backgroundColor: companyColors,
+                        backgroundColor: costColors, // Usa as cores mapeadas
                         borderColor: '#18181b'
                     }]
                 };
@@ -569,6 +611,102 @@
                 }
             };
             
+            // --- Novas Funções para o Comparador de Fornecedores ---
+
+            // Popula a lista de checkboxes
+            const populateSupplierCheckboxes = () => {
+                const supplierContainer = document.getElementById('supplierCheckboxContainer');
+                if (!supplierContainer) return;
+                
+                supplierContainer.innerHTML = ''; // Limpa
+                const sortedSuppliers = Object.keys(appData.costs).sort();
+                
+                sortedSuppliers.forEach(supplierName => {
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center';
+                    // Usar o nome como ID único e valor
+                    const supplierId = `supplier-cb-${supplierName.replace(/[^a-zA-Z0-9]/g, '')}`; // Cria um ID seguro
+                    div.innerHTML = `
+                        <input id="${supplierId}" value="${supplierName}" type="checkbox" class="h-4 w-4 bg-gray-700 border-gray-600 rounded text-green-500 focus:ring-green-600">
+                        <label for="${supplierId}" class="ml-2 block text-sm text-gray-300 truncate" title="${supplierName}">${supplierName}</label>
+                    `;
+                    supplierContainer.appendChild(div);
+                });
+
+                // Adiciona o listener de evento no container pai (mais eficiente)
+                supplierContainer.addEventListener('change', (e) => {
+                    if (e.target.type === 'checkbox') {
+                        updateSupplierMonthlyCostChart();
+                    }
+                });
+            };
+
+            // Cria o gráfico de fornecedor vazio na inicialização
+            const createEmptySupplierChart = () => {
+                if (supplierMonthlyCostChart) supplierMonthlyCostChart.destroy();
+                
+                const ctx = document.getElementById('supplierMonthlyCostChart').getContext('2d');
+                supplierMonthlyCostChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: monthLabels.map(m => m.charAt(0).toUpperCase() + m.slice(1)), // Capitaliza
+                        datasets: [] // Começa vazio
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { 
+                                position: 'bottom', 
+                                labels: { padding: 10, boxWidth: 10 }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => `${context.dataset.label}: ${formatCurrency(context.raw)}`
+                                }
+                            }
+                        },
+                        scales: {
+                            y: { ticks: { callback: (value) => formatCurrency(value) } }
+                        },
+                        interaction: { intersect: false, mode: 'index' },
+                    }
+                });
+            };
+
+            // Atualiza o gráfico de fornecedor com base nos checkboxes
+            const updateSupplierMonthlyCostChart = () => {
+                if (!supplierMonthlyCostChart) return;
+
+                const checkedBoxes = document.querySelectorAll('#supplierCheckboxContainer input[type="checkbox"]:checked');
+                const selectedSuppliers = Array.from(checkedBoxes).map(cb => cb.value);
+
+                // Limita a 8 para legibilidade
+                const limitedSuppliers = selectedSuppliers.slice(0, 8);
+                
+                // Desmarca visualmente os que passarem do limite
+                if (selectedSuppliers.length > 8) {
+                    Array.from(checkedBoxes).slice(8).forEach(cb => cb.checked = false);
+                }
+
+                const newDatasets = limitedSuppliers.map((supplierName, index) => {
+                    const costData = appData.costs[supplierName];
+                    const monthlyData = monthLabels.map(month => (costData && costData.mensal && costData.mensal[month]) ? costData.mensal[month] : 0);
+                    return {
+                        label: supplierName,
+                        data: monthlyData,
+                        borderColor: companyColors[index % companyColors.length],
+                        backgroundColor: companyColors[index % companyColors.length] + '33', // Cor com transparência
+                        fill: false,
+                        tension: 0.3
+                    };
+                });
+
+                supplierMonthlyCostChart.data.datasets = newDatasets;
+                supplierMonthlyCostChart.update();
+            };
+
+            // REMOVIDA: renderSupplierMonthlyCostChart (substituída pelas 3 funções acima)
 
             // --- Configuração de Event Listeners ---
 
@@ -667,5 +805,8 @@
     </script>
 </body>
 </html>
+
+
+
 
 
