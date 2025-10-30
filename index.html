@@ -57,6 +57,18 @@
         #editPanel::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); border-radius: 3px; }
         #editPanel::-webkit-scrollbar-thumb { background: rgba(34, 197, 94, 0.6); border-radius: 3px; }
 
+        /* Estilo para placeholders */
+        ::placeholder {
+            color: #f3f4f6; /* cinza-claro (quase branco) */
+            opacity: 1; /* Firefox */
+        }
+        ::-ms-input-placeholder { /* Internet Explorer 10-11 */
+           color: #f3f4f6;
+        }
+        ::placeholder { /* Microsoft Edge */
+           color: #f3f4f6;
+        }
+
         Chart.defaults.color = '#FFFFFF'; /* Cor branca para todo o texto do gráfico */
         Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
         Chart.defaults.plugins.legend.labels.boxWidth = 12; 
@@ -85,8 +97,6 @@
                 <div class="glass-card animate-on-load" style="animation-delay: 200ms;"><h2 class="text-lg font-semibold text-white">Total de Sistemas</h2><p id="totalSistemas" class="text-4xl font-bold text-white mt-2">0</p></div>
                 <div class="glass-card animate-on-load" style="animation-delay: 300ms;"><h2 class="text-lg font-semibold text-white">Total de Fornecedores</h2><p id="totalFornecedores" class="text-4xl font-bold text-white mt-2">0</p></div>
                 <div class="glass-card animate-on-load" style="animation-delay: 400ms;"><h2 class="text-lg font-semibold text-white">Total de Departamentos</h2><p id="totalDepartamentos" class="text-4xl font-bold text-white mt-2">0</p></div>
-                <!-- NOVO KPI DE CUSTO -->
-                <!-- Card de Custo Anual Total REMOVIDO -->
             </div>
 
             <!-- Linha 2: Gráficos de Contagem -->
@@ -95,13 +105,13 @@
                 <div class="glass-card lg:col-span-3 animate-on-load" style="animation-delay: 700ms;"><h3 class="text-xl font-semibold mb-4 text-center">Sistemas por Fornecedor</h3><div class="h-80 sm:h-96"><canvas id="vendorChart"></canvas></div></div>
             </div>
 
-            <!-- LINHA 3: NOVOS GRÁFICOS DE CUSTO -->
+            <!-- LINHA 3: GRÁFICOS DE CUSTO -->
             <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
                 <div class="glass-card lg:col-span-3 animate-on-load" style="animation-delay: 800ms;"><h3 id="monthlyCostChartTitle" class="text-xl font-semibold mb-4 text-center">Evolução de Custo Mensal</h3><div class="h-80 sm:h-96"><canvas id="monthlyCostChart"></canvas></div></div>
                 <div class="glass-card lg:col-span-2 animate-on-load" style="animation-delay: 900ms;"><h3 class="text-xl font-semibold mb-4 text-center">Custo Anual por Departamento</h3><canvas id="departmentCostChart"></canvas></div>
             </div>
 
-            <!-- LINHA 4: NOVO GRÁFICO COMPARADOR DE FORNECEDOR -->
+            <!-- LINHA 4: GRÁFICO COMPARADOR DE FORNECEDOR -->
             <div class="glass-card animate-on-load mb-8" style="animation-delay: 950ms;">
                 <h3 class="text-xl font-semibold mb-4 text-center">Comparador de Custo Mensal por Fornecedor</h3>
                 <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -119,13 +129,13 @@
                 </div>
             </div>
 
-            <!-- Linha 5: Tabela de Sistemas (era Linha 4) -->
+            <!-- Linha 5: Tabela de Sistemas -->
             <div class="glass-card animate-on-load" style="animation-delay: 1100ms;">
                 <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
                     <div class="flex items-center gap-4"><h3 class="text-xl font-semibold">Todos os Sistemas</h3><button id="resetFilterBtn" class="hidden bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded-full text-sm transition-all">Mostrar Todos</button></div>
                     <!-- Controles de Filtro e Ordenação -->
                     <div class="flex flex-col sm:flex-row sm:justify-end gap-4 w-full sm:w-auto">
-                        <!-- NOVO Seletor de Ordenação -->
+                        <!-- Seletor de Ordenação -->
                         <select id="sortCostSelect" class="w-full sm:w-auto bg-gray-900/50 border border-gray-600 rounded-lg px-4 py-2 focus-outline-none focus:ring-2 focus:ring-green-500 text-white">
                             <option value="default">Ordenar por Padrão (Nome)</option>
                             <option value="cost_desc">Custo: Maior ao Menor</option>
@@ -142,7 +152,6 @@
                                 <th class="p-3">Sistema</th>
                                 <th class="p-3">Departamento</th>
                                 <th class="p-3">Tipo de Serviço</th>
-                                <!-- COLUNA NOVA DE CUSTO -->
                                 <th class="p-3">Custo Anual (R$)</th>
                             </tr>
                         </thead>
@@ -176,7 +185,7 @@
                 <p id="jsonErrorSystems" class="text-red-500 text-xs mt-1 hidden">JSON de Sistemas inválido!</p>
             </div>
 
-            <!-- NOVO Editor de Dados de Custos -->
+            <!-- Editor de Dados de Custos -->
             <div>
                 <label for="costDataEditor" class="block text-sm font-medium text-white mb-2">Dados de Custos (JSON)</label>
                 <textarea id="costDataEditor" rows="10" class="w-full bg-gray-800 border border-gray-600 rounded-lg p-2 text-sm text-gray-300 font-mono focus:outline-none focus:ring-2 focus:ring-green-500"></textarea>
@@ -195,16 +204,16 @@
                 costs: {},
                 companyLogo: '', 
                 bgColor: '#2B652E',
-                enrichedSystems: [] // Nova array para dados combinados
+                enrichedSystems: [] // Array para dados combinados
             };
 
             // Gráficos
             let departmentChart, vendorChart, monthlyCostChart, departmentCostChart, supplierMonthlyCostChart;
             let totalMonthlyCostData = []; // Armazena os dados totais para resetar
-            let departmentColorMap = {}; // NOVO: Mapa para cores consistentes por departamento
+            let departmentColorMap = {}; // Mapa para cores consistentes por departamento
             const companyColors = ['#22c55e', '#84cc16', '#eab308', '#14b8a6', '#6366f1', '#ec4899', '#f97316', '#3b82f6'];
             const monthLabels = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-            let currentDeptFilter = null; // NOVO: Armazena o filtro de departamento ativo
+            let currentDeptFilter = null; // Armazena o filtro de departamento ativo
 
             // Dados Padrão
             const defaultData = {
@@ -216,12 +225,12 @@
                     { fornecedor: "DIGITRO TECNOLOGIA S.A.", sistema: "Digitro", departamento: "Infraestrutura e Suporte", modalidade: "Recorrente", tipo: "Central Telefonica" },
                     { fornecedor: "E-SOLUTION TECNOLOGIA E INOVACAO LTDA", sistema: "Acces Center", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Mensalidade sistema" },
                     { fornecedor: "ESOLUTION TECNOLOGIA LTDA", sistema: "Portal", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Mensalidade sistema" },
-                    { fornecedor: "GUARDIAO DESENVOLVIMENTO DE SOFTWARES E MANUTENCAO DE COMPUTADORES E SISTEMAS", sistema: "GED Guardiao Digital", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "GED WAM" }, // Nome longo
+                    { fornecedor: "GUARDIAO DESENVOLVIMENTO DE SOFTWARES E MANUTENCAO DE COMPUTADORES E SISTEMAS", sistema: "GED Guardiao Digital", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "GED WAM" },
                     { fornecedor: "Lighthouse", sistema: "Lighthouse", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Sistema de reservas" },
                     { fornecedor: "NIARA SOLUCOES EM TECNOLOGIA LTDA", sistema: "Niara pay", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Sistema de motor de vendas" },
                     { fornecedor: "Pluspoint Inc.", sistema: "Plataforma de Gestao", departamento: "Governança de TI", modalidade: "Recorrente", tipo: "Sistema de gestão de reputação online" },
                     { fornecedor: "STARIAN SISTEMAS S/A", sistema: "Sienge", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "ERP Sienge" },
-                    { fornecedor: "TIVIT TECNOLOGIA S/A", sistema: "SensorIT", departamento: "Governança de TI", modalidade: "Recorrente", tipo: "Sistema de governança de TI" }, // Nome diferente
+                    { fornecedor: "TIVIT TECNOLOGIA S/A", sistema: "SensorIT", departamento: "Governança de TI", modalidade: "Recorrente", tipo: "Sistema de governança de TI" },
                     { fornecedor: "UNE CONNECT LTDA", sistema: "Hotspot", departamento: "Infraestrutura e Suporte", modalidade: "Recorrente", tipo: "Sistema de Gestão Hot Spot" },
                     { fornecedor: "UNE CONNECT LTDA", sistema: "Cardapio Digital", departamento: "Infraestrutura e Suporte", modalidade: "Recorrente", tipo: "Sistema de Gestão Hot Spot" },
                     { fornecedor: "VVMDR ASSESSORIA EM TURISMO EIRELI", sistema: "Omnibees", departamento: "Sistemas e Dados", modalidade: "Recorrente", tipo: "Mensalidade sistema I.O." },
@@ -236,7 +245,7 @@
                     { fornecedor: "SW SOLUCOES INTEGRADAS LTDA", sistema: "Banco de Dados", departamento: "Inovação e IA", modalidade: "Recorrente", tipo: "Cloud" },
                     { fornecedor: "Amazon AWS Serviços Brasil Ltda.", sistema: "Banco de dados AWS", departamento: "Infraestrutura e Suporte", modalidade: "Recorrente", tipo: "AWS" }
                 ],
-                costs: { /* SEUS DADOS DE CUSTO ENTRAM AQUI */
+                costs: {
                     "ASSOCIATED SOFTWARE COMPANY LTDA": {"mensal": {"janeiro": 17898.31, "fevereiro": 18089.87, "março": 18216.03, "abril": 24863.02, "maio": 25287.14, "junho": 25015.95, "julho": 25631.86, "agosto": 23216.34, "setembro": 23973.76, "outubro": 25059.73, "novembro": 0.0}, "total_anual": 227252.01},
                     "Amazon AWS Serviços Brasil Ltda.": {"mensal": {"janeiro": 3810.54, "fevereiro": 5612.54, "março": 10203.05, "abril": 12334.75, "maio": 13618.21, "junho": 12106.67, "julho": 8882.03, "agosto": 9626.25, "setembro": 12158.02, "outubro": 0.0, "novembro": 0.0}, "total_anual": 88352.06},
                     "Antropic": {"mensal": {"janeiro": 0.0, "fevereiro": 0.0, "março": 0.0, "abril": 0.0, "maio": 0.0, "junho": 0.0, "julho": 0.0, "agosto": 0.0, "setembro": 488.89, "outubro": 0.0, "novembro": 0.0}, "total_anual": 488.89},
@@ -247,10 +256,10 @@
                     "DIGITRO TECNOLOGIA S.A.": {"mensal": {"janeiro": 27682.84, "fevereiro": 27682.81, "março": 27682.85, "abril": 27682.85, "maio": 27682.85, "junho": 27682.85, "julho": 27682.85, "agosto": 27682.85, "setembro": 27802.16, "outubro": 27802.16, "novembro": 0.0}, "total_anual": 277067.07},
                     "Deep Seek": {"mensal": {"janeiro": 0.0, "fevereiro": 0.0, "março": 0.0, "abril": 0.0, "maio": 0.0, "junho": 0.0, "julho": 0.0, "agosto": 0.0, "setembro": 583.26, "outubro": 0.0, "novembro": 0.0}, "total_anual": 583.26},
                     "E-SOLUTION TECNOLOGIA E INOVACAO LTDA": {"mensal": {"janeiro": 13724.88, "fevereiro": 13814.45, "março": 13862.89, "abril": 13877.87, "maio": 13877.87, "junho": 12323.07, "julho": 12368.57, "agosto": 6621.75, "setembro": 34204.46, "outubro": 34204.45, "novembro": 0.0}, "total_anual": 168880.26},
-                    "E-SOLUTION TECNOLOGIA LTDA": {"mensal": {"janeiro": 183810.35, "fevereiro": 190505.99, "março": 181583.03, "abril": 190505.99, "maio": 190505.99, "junho": 189915.67, "julho": 183802.62, "agosto": 141308.54, "setembro": 151997.16, "outubro": 151997.16, "novembro": 0.0}, "total_anual": 1755932.5},
+                    "ESOLUTION TECNOLOGIA LTDA": {"mensal": {"janeiro": 183810.35, "fevereiro": 190505.99, "março": 181583.03, "abril": 190505.99, "maio": 190505.99, "junho": 189915.67, "julho": 183802.62, "agosto": 141308.54, "setembro": 151997.16, "outubro": 151997.16, "novembro": 0.0}, "total_anual": 1755932.5},
                     "EVADESK LTDA": {"mensal": {"janeiro": 0.0, "fevereiro": 0.0, "março": 0.0, "abril": 0.0, "maio": 0.0, "junho": 0.0, "julho": 0.0, "agosto": 0.0, "setembro": 1553.46, "outubro": 1553.46, "novembro": 0.0}, "total_anual": 3106.92},
                     "GUARDIAO DESENVOLVIMENTO DE SOFTWARES E MANUTENCAO DE COMPUTADORES E SISTEMAS": {"mensal": {"janeiro": 1412.0, "fevereiro": 1412.0, "março": 1412.0, "abril": 1412.0, "maio": 1412.0, "junho": 1412.0, "julho": 1412.0, "agosto": 1412.0, "setembro": 1412.0, "outubro": 1412.0, "novembro": 0.0}, "total_anual": 14120.0},
-                    "GUARDIAO DESENVOLVIMENTO DE SOFTWARES E MANUTENCAO DE COMPUTADORES E SISTEMAS": {"mensal": {"janeiro": 14568.49, "fevereiro": 15368.22, "março": 15423.9, "abril": 15475.74, "maio": 15523.73, "junho": 15843.84, "julho": 14812.69, "agosto": 15918.71, "setembro": 15945.59, "outubro": 15974.4, "novembro": 0.0}, "total_anual": 154855.31},
+                    "GUARDIAO GESTAO DA INFORMACAO LTDA": {"mensal": {"janeiro": 14568.49, "fevereiro": 15368.22, "março": 15423.9, "abril": 15475.74, "maio": 15523.73, "junho": 15843.84, "julho": 14812.69, "agosto": 15918.71, "setembro": 15945.59, "outubro": 15974.4, "novembro": 0.0}, "total_anual": 154855.31},
                     "Google One + Gemini": {"mensal": {"janeiro": 0.0, "fevereiro": 0.0, "março": 0.0, "abril": 0.0, "maio": 0.0, "junho": 0.0, "julho": 0.0, "agosto": 0.0, "setembro": 99.0, "outubro": 0.0, "novembro": 0.0}, "total_anual": 99.0},
                     "Lighthouse": {"mensal": {"janeiro": 0.0, "fevereiro": 45083.38, "março": 0.0, "abril": 0.0, "maio": 0.0, "junho": 0.0, "julho": 0.0, "agosto": 0.0, "setembro": 0.0, "outubro": 0.0, "novembro": 0.0}, "total_anual": 45083.38},
                     "MGC LTDA": {"mensal": {"janeiro": 0.0, "fevereiro": 0.0, "março": 0.0, "abril": 0.0, "maio": 0.0, "junho": 0.0, "julho": 0.0, "agosto": 15000.0, "setembro": 15000.0, "outubro": 15000.0, "novembro": 0.0}, "total_anual": 45000.0},
@@ -264,7 +273,7 @@
                     "UNE CONNECT LTDA": {"mensal": {"janeiro": 14332.44, "fevereiro": 14576.44, "março": 14465.52, "abril": 14576.44, "maio": 14464.94, "junho": 14088.94, "julho": 3149.0, "agosto": 3037.8, "setembro": 3034.74, "outubro": 3036.26, "novembro": 0.0}, "total_anual": 98762.52},
                     "VVMDR ASSESSORIA EM TURISMO EIRELI": {"mensal": {"janeiro": 30600.0, "fevereiro": 30600.0, "março": 30600.0, "abril": 16800.0, "maio": 0.0, "junho": 7000.0, "julho": 7000.0, "agosto": 7000.0, "setembro": 7000.0, "outubro": 7000.0, "novembro": 0.0}, "total_anual": 143600.0}
                 },
-                companyLogo: `data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAkGBwgHBhUIBxMWFhUXFhYYGRgXFyAfHxgeGxYXHB4dFx4gHyghHh8nIBodLT0iJywtMDo6HyQzODMtNzQwLy0BCgoKDg0OFRAQFSseGBsrLisrLy03LTcrLTctKy0rLSstKysrKystKystLTctKys3Ny03LTc3LTcrKzc3LTctLf/AABEIAMgAyAMBIgACEQEDEQH/xAAcAAEAAgMBAQEAAAAAAAAAAAAABgcEBQgDAgH/xAA4EAACAQIDBgQDCAEEAwAAAAAAAQIEBQMRQQYHITFhcRIVI1EUIoETMkJSYrHB8NFTkbLhM4Kh/8QAGQEBAAMBAQAAAAAAAAAAAAAAAAMEBQIB/8QAIhEBAAICAgIDAAMAAAAAAAAAAAECAxEEEiExIkFhE0Jx/9oADAMBAAIRAxEAPwCHAAqMEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATjd5sXhbQQlXXFtYUZeFRi8nOWSbzeiWa/qNztnu5pKa2SrrEpKUFnLDbcvFHVxz45rmZm567YGLa52qTynCTml7xllx+j/dFiE9axNWliw0tjjw5eBMt5OzHkl0+MpF6OK21lyhLWPbVf9ENIZjU6Z96TS0xL6wsOeNirDw1m20kvdvkXFad2FowqBRufixMRr5mpNJP2ilp3KioKl0ddh1UVn4Jxll7+GSf8HSNurcC40UKylecJpNP+6kmOIla4lKW3tRO22zGJszc/sotywp8YSf8A9i+q/lEdOidqrFg7Q2eVFi8HzhL8slyf8Po2c+VlLjUNXKlqo+GcJOMl7NHN66lHyMPS249S8QD1pqfFq6iNPTpylJqKS1b5HCvEN1sbs1i7S3T4dNxw4rPEmtFol1f+fYse5bsLLi0LhQeOGIlwk5Npv9S9u2Rv9kLBhbO2eNJDJzfzYkvzSfP6LkjaV1Vg0NJKqqn4YQi5Sb9kT1pER5aePj1rT5R5c042FPAxng4qylFtNezWaZ8GRcan4y4YlVll45ynl7eKTf8AJjkEsyfchZ2w+72lq7dG4X1SfjWccNNrKOjk1xzf96R7d1sx59dvt6lejhNOX6npDt79O5eiWSyRLSv3K7xcET8rKZ3i7F01hwY3C2Z/Zyl4ZRbz8LybTT9uD5/yQQt7fFc8LCtELan885qeXtGOfF93l/syoTm8RE+EPJrWt5ioADhAAAAAAAAAzbPcqiz3KFfSPKUHn3WqfRrgdC2S6U95tcK+kfyyXLWL1i+qZzaTTdptP5Lc/gat+jitLjyhPkpdnyf09iTHbU6WuNm6W6z6lbt9tNPerXOgqlwkuD1i9JLqmc9Xa3VFpuM6GrWUoPJ9Vo10a4nSpBd6GzHmtu8yo16uEnml+OHNruua+p3kruNrPKxd69o9wpgsHdVtP8DWeTVkvTxH6bf4ZvTtL9+5Xx+puLzjzIazqds/HeaW3DqArjevsx8TT+eUUfngssVLWOku8f27G83e7TLaC0eCofrYeSn+r2n9deuZKZwjODhNZp8GnqWJ1aGraK5af65gLW3T7L/ZYfntauMk1hJ6LWf15Lpn7mDibuMR7ZfYJP4V+p4vZZ/+PP3z4duJa2FhxwsJYeEskkkkuSS5JEdKefKtx+PMW3b6fZUu9faf4mo8jopfLB54rT+9LSP/AK/v2Jpt5tJHZ2zuWG/VnnHDXXLjJ9I/vkUNOcsSbnNttvNt6s9yW+nXLzajpD5Mq2UFRdK+FDRrOc3kunV9FzMUuPdbsx5bQebVsfVxV8qf4If5lz7ZdSOtdyp4cU5LaSzZ2z09itUKCm5RXF/mk+cn3Z7Xe409pt066reUYLN9fZLq3wMwpjejtN5pcfLKN+lhP5mvxz5P6R5f7k1p6w0st4xU8IpfbrUXu6Tr6rnJ8FpFaRXZGAAV2TMzM7kAAeAAAAAAAAAAAundjtP5vbfL6t542Elz5zhyT7rk/p7k4Oa7Nc6iz3KFfSP5oPPo1qn0a4HQtkulPebZCvpH8s1nlqnqn1TJ8dtw1ONl711PuFP7ytmPJLp8ZSrLBxW2suUJax7ar/ohp0jfbTT3q1ToKpcJLg9YvSS6pnPV2t1RabjOhq1lKDyfVaNdGuJxeup2q8nF0t2j1LI2avWPYLvCvp9OEo/mi8s1/dcjoS3VuBcaKNXSPOE0pJnM5dG6Wjr6XZ54lY/knLxYcXotZdpPTpnqe4586d8O876/ScnhWVODR00qmpajGKcm3oke5C961LX1OzPion8kZKWLFc3Fa9k+LX10JZnUL17dazMKr2sv2NtDeJVuJwj92EfyxXJd9X3NMDLtdvqLrcIUNGs5TeS6e7fRLiVvbGmZtb9lJN3GzHnt1+Iql6OE05frlpH+X07l5cka6wWinsdqhQUvKK4vWT1k+7Pa6XCntdvnXVbyhBZv+EurfAnrHWGrhxxjp5RneRtN5FavhqWWWNipqOXOMdZfwuvYo82N/u9RfLrOvqucnwX5Y6RXY1xDe25Z2fL/ACW/AAHKEAAAAAAAAAAAAACa7s9p/Jrn8DVv0cVpceUJ8Epdnyf09iFA9idTt1S80tEw6hIXvG2Rd+pVWUC9fDWWX+pH8vdafX6fG7Lafzi2/AVcvWwklx5zhyT7rk/p7k3LHi0Nf45afkqP2Q2GuF0uadzwp4eDB5z8cXFy/THPi8/fQu3DhHDgoYaySSSS06I9Dwq6nBpKeVRUSUYxTbb0SFaxV5ixVxR4eniXi8LE4RnBxms0+DT1KPqduqye2HnWFn4I/IsP3w8+KfV8+/Yum31uBcKONZSPxQnFNP8Auoi0SY81cm4j6U1tlsNXWu5Odqw54mDN5x8EXJw/TJLj2ZN92+yMrHSuuuC9fEWWX+nH27vX6Im4PIpETtzXj0rfsFN70tp/Mq/ymkl6eE/ma/FP/EeXfPoTXeLtOrDavsKZ+tiJqPvFaz/x17FGt5vNnOS30h5eb+kAAIWeAAAAAAAAAAAAAAAAAADIt9dU22sjV0UnGcXmmv7yLTse9OixcJYd6hKE9ZQXii+uX3l24lSA9raYSY81sfpeFVvK2bwcPxYU54j9o4cl/wAkkVxtftrXbRv7CK+zwU81BP73s5vXtyIsD2bzLvJyL3jQSbZDbKu2an9nFfaYLebg3y6wejIyDyJ16RUvNZ3C76TeXs5j4Xix5zw37Sg3/wAc0a29706DAwnCzwliT0lJeGK65fefbh3KiB3/ACSnnl5JjTKudxqrpWyrK6TlOXNv9ktF0MUAjVpnfmQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB/9k=`,
+                companyLogo: `data:image/jpeg;base64,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`,
                 bgColor: '#2B652E'
             };
 
@@ -287,12 +296,15 @@
             
             const animateCountUp = (el, end, duration = 1500, isCurrency = false) => {
                 let start = 0, range = end - start, current = start, increment = end > start ? 1 : -1;
-                const stepTime = Math.abs(Math.floor(duration / range));
                 
                 const timer = setInterval(() => {
-                    current += increment * (Math.abs(end - current) > 10000 ? 1000 : (Math.abs(end - current) > 1000 ? 100 : 1));
-                    if (increment > 0 && current > end) current = end;
-                    if (increment < 0 && current < end) current = end;
+                    // Animação mais rápida
+                    const step = Math.max(1, Math.ceil(Math.abs(end - current) * 0.05));
+                    current += increment * step;
+
+                    if ((increment > 0 && current > end) || (increment < 0 && current < end)) {
+                        current = end;
+                    }
                     
                     if(isCurrency) {
                         el.innerHTML = formatCurrency(current);
@@ -301,7 +313,7 @@
                     }
                     
                     if (current == end) clearInterval(timer);
-                }, 1);
+                }, 20); // Intervalo menor para mais fluidez
             };
 
             // --- Funções de Persistência ---
@@ -323,7 +335,7 @@
                     const parsedState = JSON.parse(storedState);
                     appData = { ...defaultData, ...parsedState }; // Mescla, garantindo que todos os campos existam
                     
-                    // Prevenção contra logos quebradas (ex: se o logo era um blob local)
+                    // Prevenção contra logos quebradas
                     if (appData.companyLogo && !appData.companyLogo.startsWith('data:image')) {
                         appData.companyLogo = defaultData.companyLogo;
                     }
@@ -333,11 +345,6 @@
             };
 
             // --- Funções de Lógica de Dados ---
-
-            /**
-             * A função principal de combinação de dados.
-             * Cria appData.enrichedSystems a partir de appData.systems e appData.costs.
-             */
             const enrichSystemsData = () => {
                 const { systems, costs } = appData;
                 
@@ -403,7 +410,7 @@
                     `<tr><td colspan="5" class="p-4 text-center text-gray-400">Nenhum sistema encontrado.</td></tr>`;
             };
 
-            // NOVO: Função centralizada para atualizar a tabela e gráficos dependentes
+            // Função centralizada para atualizar a tabela e gráficos dependentes
             const refreshTable = () => {
                 const searchTerm = document.getElementById('searchInput').value.toLowerCase();
                 const sortValue = document.getElementById('sortCostSelect').value;
@@ -435,9 +442,9 @@
                 // 4. Renderizar a tabela
                 renderTable(data);
                 
-                // 5. Atualizar gráficos que dependem desta filtragem
+                // 5. Atualizar gráficos que dependem desta filtragem (apenas os de contagem)
                 updateVendorChart(data);
-                updateDepartmentCostChart(data);
+                updateDepartmentCostChart(data); // Gráfico de custo anual por depto também é filtrado
             }
 
 
@@ -456,13 +463,12 @@
 
                 applyStyling();
 
-                // NOVO: Gerar mapa de cores para departamentos
-                departmentColorMap = {}; // Limpa o mapa para o caso de os dados mudarem (JSON edit)
+                // Gerar mapa de cores para departamentos
+                departmentColorMap = {}; // Limpa o mapa
                 const allDepartments = [...new Set(systems.map(s => s.departamento))].sort(); // Pega todos os deptos únicos e ordena
                 allDepartments.forEach((dept, index) => {
                     departmentColorMap[dept] = companyColors[index % companyColors.length];
                 });
-                // FIM NOVO
 
                 if (!systems || systems.length === 0) return;
 
@@ -470,10 +476,6 @@
                 animateCountUp(document.getElementById('totalSistemas'), systems.length);
                 animateCountUp(document.getElementById('totalFornecedores'), new Set(systems.map(i => i.fornecedor)).size);
                 animateCountUp(document.getElementById('totalDepartamentos'), new Set(systems.map(i => i.departamento)).size);
-
-                // KPI de Custo Anual Total (soma do JSON de custos original) - REMOVIDO
-                // const totalAnualCost = Object.values(costs).reduce((acc, item) => acc + (item.total_anual || 0), 0);
-                // animateCountUp(document.getElementById('custoAnualTotal'), totalAnualCost, 1500, true);
 
                 // --- Renderizar Gráficos de Contagem ---
                 const departmentData = aggregateData(systems, 'departamento');
@@ -483,10 +485,10 @@
                 departmentChart = new Chart(document.getElementById('departmentChart').getContext('2d'), { 
                     type: 'doughnut', 
                     data: { 
-                        labels: deptLabels, // Usa os labels
+                        labels: deptLabels, 
                         datasets: [{ 
                             data: Object.values(departmentData), 
-                            backgroundColor: deptColors, // Usa as cores mapeadas
+                            backgroundColor: deptColors, 
                             borderColor: '#18181b' 
                         }] 
                     }, 
@@ -501,7 +503,26 @@
                         labels: sortedVendorData.map(item => item[0]), 
                         datasets: [{ label: 'Nº de Sistemas', data: sortedVendorData.map(item => item[1]), backgroundColor: companyColors[0], borderWidth: 1, borderRadius: 4 }] 
                     }, 
-                    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(255, 255, 255, 0.1)' }, ticks: { color: '#FFFFFF', precision: 0 } }, y: { grid: { display: false }, ticks: { color: '#FFFFFF' } } } } 
+                    options: { 
+                        indexAxis: 'y', 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        plugins: { legend: { display: false } }, 
+                        scales: { 
+                            x: { 
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' }, 
+                                ticks: { 
+                                    color: '#FFFFFF', // CORREÇÃO: Cor do eixo X
+                                    precision: 0,
+                                    callback: (value) => Math.floor(value) === value ? value : null // Mostra apenas inteiros
+                                } 
+                            }, 
+                            y: { 
+                                grid: { display: false }, 
+                                ticks: { color: '#FFFFFF' } 
+                            } 
+                        } 
+                    } 
                 });
 
                 // --- Renderizar Gráficos de Custo ---
@@ -528,9 +549,15 @@
                     },
                     options: {
                         responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
+                        plugins: { legend: { display: true, position: 'bottom' } }, // Legenda visível
                         scales: {
-                            y: { ticks: { callback: (value) => formatCurrency(value) } }
+                            y: { 
+                                ticks: { 
+                                    color: '#FFFFFF', // CORREÇÃO: Cor do eixo Y
+                                    callback: (value) => formatCurrency(value) 
+                                } 
+                            },
+                            x: { ticks: { color: '#FFFFFF' } } // CORREÇÃO: Cor do eixo X
                         },
                         interaction: { intersect: false, mode: 'index' },
                         plugins: {
@@ -546,8 +573,7 @@
                 // Gráfico 2: Custo Anual por Departamento (Baseado nos dados enriquecidos)
                 updateDepartmentCostChart(enrichedSystems);
 
-                // NOVO: Renderizar gráfico de custo mensal por fornecedor
-                // renderSupplierMonthlyCostChart(costs); // <- Removido
+                // Renderizar gráfico de custo mensal por fornecedor
                 populateSupplierCheckboxes();
                 createEmptySupplierChart();
 
@@ -563,7 +589,7 @@
 
             // --- Funções de Atualização Dinâmica ---
 
-            // NOVA FUNÇÃO para atualizar o gráfico de linha de custo mensal
+            // Atualiza o gráfico de linha de custo mensal (Total ou por Depto)
             const updateMonthlyCostChart = (departmentName = null) => {
                 let dataToShow;
                 let chartLabel;
@@ -592,15 +618,19 @@
                 }
             };
 
+            // Atualiza o gráfico de barras (Sistemas por Fornecedor)
             const updateVendorChart = (data) => {
                 const vendorData = aggregateData(data, 'fornecedor');
                 const sortedVendorData = Object.entries(vendorData).sort(([,a],[,b]) => b - a);
-                vendorChart.data.labels = sortedVendorData.map(item => item[0]);
-                vendorChart.data.datasets[0].data = sortedVendorData.map(item => item[1]);
-                vendorChart.update();
+                
+                if (vendorChart) {
+                    vendorChart.data.labels = sortedVendorData.map(item => item[0]);
+                    vendorChart.data.datasets[0].data = sortedVendorData.map(item => item[1]);
+                    vendorChart.update();
+                }
             };
 
-            // Nova função para atualizar o gráfico de custo por departamento
+            // Atualiza o gráfico de rosca (Custo Anual por Departamento)
             const updateDepartmentCostChart = (data) => {
                 const departmentCostData = data.reduce((acc, item) => {
                     acc[item.departamento] = (acc[item.departamento] || 0) + item.costAnual;
@@ -609,14 +639,14 @@
 
                 const sortedDepartmentCostData = Object.entries(departmentCostData).sort(([,a],[,b]) => b - a);
 
-                const costLabels = sortedDepartmentCostData.map(item => item[0]); // Pega os labels
-                const costColors = costLabels.map(label => departmentColorMap[label] || '#cccccc'); // Mapeia para cores, com um fallback
+                const costLabels = sortedDepartmentCostData.map(item => item[0]);
+                const costColors = costLabels.map(label => departmentColorMap[label] || '#cccccc'); // Mapeia para cores
 
                 const chartData = {
-                    labels: costLabels, // Usa os labels
+                    labels: costLabels,
                     datasets: [{
                         data: sortedDepartmentCostData.map(item => item[1]),
-                        backgroundColor: costColors, // Usa as cores mapeadas
+                        backgroundColor: costColors,
                         borderColor: '#18181b'
                     }]
                 };
@@ -633,11 +663,11 @@
                         options: {
                             responsive: true,
                             cutout: '60%',
-                            onClick: (evt) => { // ADICIONADO EVENTO DE CLIQUE
+                            onClick: (evt) => { // Evento de clique para filtrar
                                 const points = departmentCostChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
                                 if (points.length) {
                                     const label = departmentCostChart.data.labels[points[0].index];
-                                    updateMonthlyCostChart(label); // Chama a nova função de filtro
+                                    updateMonthlyCostChart(label); // Filtra o gráfico de linha
                                     document.getElementById('resetFilterBtn').classList.remove('hidden'); // Mostra o botão de reset
                                 }
                             },
@@ -648,9 +678,7 @@
                                         label: (context) => {
                                             const label = context.label || '';
                                             const value = context.raw || 0;
-                                            // const total = context.chart.getDataVisibility().reduce((a, b) => a + b, 0); // LINHA REMOVIDA - Causava o erro
                                             const sum = context.chart.config.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                                            // ADICIONADA VERIFICAÇÃO para evitar divisão por zero
                                             const percentage = sum > 0 ? ((value / sum) * 100).toFixed(2) : 0;
                                             return `${label}: ${formatCurrency(value)} (${percentage}%)`;
                                         }
@@ -662,7 +690,7 @@
                 }
             };
             
-            // --- Novas Funções para o Comparador de Fornecedores ---
+            // --- Funções para o Comparador de Fornecedores ---
 
             // Popula a lista de checkboxes
             const populateSupplierCheckboxes = () => {
@@ -675,16 +703,15 @@
                 sortedSuppliers.forEach(supplierName => {
                     const div = document.createElement('div');
                     div.className = 'flex items-center';
-                    // Usar o nome como ID único e valor
                     const supplierId = `supplier-cb-${supplierName.replace(/[^a-zA-Z0-9]/g, '')}`; // Cria um ID seguro
                     div.innerHTML = `
                         <input id="${supplierId}" value="${supplierName}" type="checkbox" class="h-4 w-4 bg-gray-700 border-gray-600 rounded text-green-500 focus:ring-green-600">
-                        <label for="${supplierId}" class="ml-2 block text-sm text-gray-300 truncate" title="${supplierName}">${supplierName}</label>
+                        <label for="${supplierId}" class="ml-2 block text-sm text-white truncate" title="${supplierName}">${supplierName}</label>
                     `;
                     supplierContainer.appendChild(div);
                 });
 
-                // Adiciona o listener de evento no container pai (mais eficiente)
+                // Adiciona o listener de evento no container pai
                 supplierContainer.addEventListener('change', (e) => {
                     if (e.target.type === 'checkbox') {
                         updateSupplierMonthlyCostChart();
@@ -718,7 +745,13 @@
                             }
                         },
                         scales: {
-                            y: { ticks: { callback: (value) => formatCurrency(value) } }
+                            y: { 
+                                ticks: { 
+                                    color: '#FFFFFF', // CORREÇÃO: Cor do eixo Y
+                                    callback: (value) => formatCurrency(value) 
+                                } 
+                            },
+                            x: { ticks: { color: '#FFFFFF' } } // CORREÇÃO: Cor do eixo X
                         },
                         interaction: { intersect: false, mode: 'index' },
                     }
@@ -757,8 +790,6 @@
                 supplierMonthlyCostChart.update();
             };
 
-            // REMOVIDA: renderSupplierMonthlyCostChart (substituída pelas 3 funções acima)
-
             // --- Configuração de Event Listeners ---
 
             const populateEditPanel = () => {
@@ -769,21 +800,20 @@
 
             const handleImageUpload = (file, callback) => { const reader = new FileReader(); reader.onload = e => callback(e.target.result); reader.readAsDataURL(file); };
 
-            const setupDashboardEventListeners = () => { // Removido parâmetro enrichedData
+            const setupDashboardEventListeners = () => {
                 document.querySelectorAll('.glass-card').forEach(card => card.addEventListener('mousemove', e => { const rect = card.getBoundingClientRect(); card.style.setProperty('--x', `${e.clientX - rect.left}px`); card.style.setProperty('--y', `${e.clientY - rect.top}px`); }));
                 
-                // MODIFICADO: searchInput
+                // Filtro de Busca
                 document.getElementById('searchInput').addEventListener('input', e => { 
-                    // Se o usuário digitar, limpa o filtro de departamento
                     if(currentDeptFilter) {
                         currentDeptFilter = null;
                         document.getElementById('resetFilterBtn').classList.add('hidden');
-                        updateMonthlyCostChart(null); // Reseta o gráfico de linha
+                        updateMonthlyCostChart(null); 
                     }
                     refreshTable();
                 });
 
-                // MODIFICADO: departmentChart
+                // Clique no Gráfico de Depto (Contagem)
                 document.getElementById('departmentChart').onclick = (evt) => { 
                     const points = departmentChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true); 
                     if (points.length) { 
@@ -792,23 +822,23 @@
                         document.getElementById('searchInput').value = ''; // Limpa a busca
                         document.getElementById('sortCostSelect').value = 'default'; // Reseta o sort
                         document.getElementById('resetFilterBtn').classList.remove('hidden'); 
-                        refreshTable(); // Atualiza a tabela
+                        refreshTable(); // Atualiza a tabela e gráficos dependentes
                     } 
                 };
 
-                // NOVO: Listener para o select de ordenação
+                // Seletor de Ordenação
                 document.getElementById('sortCostSelect').addEventListener('change', () => {
                     refreshTable();
                 });
 
-                // MODIFICADO: resetFilterBtn
+                // Botão Resetar Filtro
                 document.getElementById('resetFilterBtn').onclick = () => { 
                     currentDeptFilter = null; // Limpa o filtro de depto
                     document.getElementById('searchInput').value = ''; // Limpa a busca
                     document.getElementById('sortCostSelect').value = 'default'; // Reseta o sort
                     document.getElementById('resetFilterBtn').classList.add('hidden'); 
                     updateMonthlyCostChart(null); // Reseta o gráfico de linha
-                    refreshTable(); // Atualiza a tabela
+                    refreshTable(); // Atualiza a tabela e gráficos dependentes
                 };
             };
 
@@ -865,3 +895,4 @@
     </script>
 </body>
 </html>
+
