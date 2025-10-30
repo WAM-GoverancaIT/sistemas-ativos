@@ -123,7 +123,16 @@
             <div class="glass-card animate-on-load" style="animation-delay: 1100ms;">
                 <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
                     <div class="flex items-center gap-4"><h3 class="text-xl font-semibold">Todos os Sistemas</h3><button id="resetFilterBtn" class="hidden bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded-full text-sm transition-all">Mostrar Todos</button></div>
-                    <input type="text" id="searchInput" placeholder="Filtrar sistemas..." class="w-full sm:w-72 bg-gray-900/50 border border-gray-600 rounded-lg px-4 py-2 focus-outline-none focus:ring-2 focus:ring-green-500 text-white">
+                    <!-- Controles de Filtro e Ordenação -->
+                    <div class="flex flex-col sm:flex-row sm:justify-end gap-4 w-full sm:w-auto">
+                        <!-- NOVO Seletor de Ordenação -->
+                        <select id="sortCostSelect" class="w-full sm:w-auto bg-gray-900/50 border border-gray-600 rounded-lg px-4 py-2 focus-outline-none focus:ring-2 focus:ring-green-500 text-white">
+                            <option value="default">Ordenar por Padrão (Nome)</option>
+                            <option value="cost_desc">Custo: Maior ao Menor</option>
+                            <option value="cost_asc">Custo: Menor ao Maior</option>
+                        </select>
+                        <input type="text" id="searchInput" placeholder="Filtrar sistemas..." class="w-full sm:w-72 bg-gray-900/50 border border-gray-600 rounded-lg px-4 py-2 focus-outline-none focus:ring-2 focus:ring-green-500 text-white">
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left">
@@ -195,6 +204,7 @@
             let departmentColorMap = {}; // NOVO: Mapa para cores consistentes por departamento
             const companyColors = ['#22c55e', '#84cc16', '#eab308', '#14b8a6', '#6366f1', '#ec4899', '#f97316', '#3b82f6'];
             const monthLabels = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+            let currentDeptFilter = null; // NOVO: Armazena o filtro de departamento ativo
 
             // Dados Padrão
             const defaultData = {
@@ -250,7 +260,7 @@
                     "STARIAN SISTEMAS S/A": {"mensal": {"janeiro": 59002.16, "fevereiro": 59002.16, "março": 59002.16, "abril": 59002.16, "maio": 59002.16, "junho": 59002.16, "julho": 59002.16, "agosto": 59002.16, "setembro": 59002.16, "outubro": 53861.85, "novembro": 0.0}, "total_anual": 584881.29},
                     "SUPABASE": {"mensal": {"janeiro": 0.0, "fevereiro": 0.0, "março": 0.0, "abril": 0.0, "maio": 0.0, "junho": 0.0, "julho": 0.0, "agosto": 0.0, "setembro": 0.0, "outubro": 0.0, "novembro": 0.0}, "total_anual": 0.0},
                     "SW SOLUCOES INTEGRADAS LTDA": {"mensal": {"janeiro": 0.0, "fevereiro": 0.0, "março": 0.0, "abril": 0.0, "maio": 0.0, "junho": 7000.0, "julho": 7000.0, "agosto": 7000.0, "setembro": 7000.0, "outubro": 7000.0, "novembro": 0.0}, "total_anual": 35000.0},
-                    "TIVIT TERCEIRIZAÇÃO DE PROCESSOS, SERVIÇOS E TECNOLOGIA S/A": {"mensal": {"janeiro": 0.0, "fevereiro": 0.0, "março": 0.0, "abril": 0.0, "maio": 0.0, "junho": 0.0, "julho": 12888.0, "agosto": 9999.0, "setembro": 9999.0, "outubro": 9999.0, "novembro": 0.0}, "total_anual": 42885.0},
+                    "TIVIT TECNOLOGIA S/A": {"mensal": {"janeiro": 0.0, "fevereiro": 0.0, "março": 0.0, "abril": 0.0, "maio": 0.0, "junho": 0.0, "julho": 12888.0, "agosto": 9999.0, "setembro": 9999.0, "outubro": 9999.0, "novembro": 0.0}, "total_anual": 42885.0},
                     "UNE CONNECT LTDA": {"mensal": {"janeiro": 14332.44, "fevereiro": 14576.44, "março": 14465.52, "abril": 14576.44, "maio": 14464.94, "junho": 14088.94, "julho": 3149.0, "agosto": 3037.8, "setembro": 3034.74, "outubro": 3036.26, "novembro": 0.0}, "total_anual": 98762.52},
                     "VVMDR ASSESSORIA EM TURISMO EIRELI": {"mensal": {"janeiro": 30600.0, "fevereiro": 30600.0, "março": 30600.0, "abril": 16800.0, "maio": 0.0, "junho": 7000.0, "julho": 7000.0, "agosto": 7000.0, "setembro": 7000.0, "outubro": 7000.0, "novembro": 0.0}, "total_anual": 143600.0}
                 },
@@ -393,6 +403,44 @@
                     `<tr><td colspan="5" class="p-4 text-center text-gray-400">Nenhum sistema encontrado.</td></tr>`;
             };
 
+            // NOVO: Função centralizada para atualizar a tabela e gráficos dependentes
+            const refreshTable = () => {
+                const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+                const sortValue = document.getElementById('sortCostSelect').value;
+
+                let data;
+
+                // 1. Get base data (completa ou filtrada por departamento)
+                if (currentDeptFilter) {
+                    data = appData.enrichedSystems.filter(item => item.departamento === currentDeptFilter);
+                } else {
+                    data = [...appData.enrichedSystems];
+                }
+
+                // 2. Filtrar por busca
+                if (searchTerm) {
+                    data = data.filter(item => Object.values(item).some(val => String(val).toLowerCase().includes(searchTerm)));
+                }
+
+                // 3. Ordenar
+                if (sortValue === 'cost_desc') {
+                    data.sort((a, b) => b.costAnual - a.costAnual);
+                } else if (sortValue === 'cost_asc') {
+                    data.sort((a, b) => a.costAnual - b.costAnual);
+                } else {
+                    // Padrão: ordenar por nome do fornecedor
+                    data.sort((a, b) => (a.fornecedor || '').localeCompare(b.fornecedor || ''));
+                }
+
+                // 4. Renderizar a tabela
+                renderTable(data);
+                
+                // 5. Atualizar gráficos que dependem desta filtragem
+                updateVendorChart(data);
+                updateDepartmentCostChart(data);
+            }
+
+
             const renderAll = () => {
                 // Destroi gráficos antigos
                 if (departmentChart) departmentChart.destroy();
@@ -504,10 +552,13 @@
                 createEmptySupplierChart();
 
                 // --- Renderizar Tabela ---
-                renderTable(enrichedSystems);
+                currentDeptFilter = null; // Assegura que o filtro de depto está limpo
+                document.getElementById('sortCostSelect').value = 'default'; // Assegura que o sort está no padrão
+                document.getElementById('searchInput').value = ''; // Assegura que a busca está limpa
+                refreshTable(); // Chama a função central para renderizar a tabela
                 
                 // Configura os event listeners
-                setupDashboardEventListeners(enrichedSystems);
+                setupDashboardEventListeners();
             };
 
             // --- Funções de Atualização Dinâmica ---
@@ -718,37 +769,46 @@
 
             const handleImageUpload = (file, callback) => { const reader = new FileReader(); reader.onload = e => callback(e.target.result); reader.readAsDataURL(file); };
 
-            const setupDashboardEventListeners = (enrichedData) => {
+            const setupDashboardEventListeners = () => { // Removido parâmetro enrichedData
                 document.querySelectorAll('.glass-card').forEach(card => card.addEventListener('mousemove', e => { const rect = card.getBoundingClientRect(); card.style.setProperty('--x', `${e.clientX - rect.left}px`); card.style.setProperty('--y', `${e.clientY - rect.top}px`); }));
                 
+                // MODIFICADO: searchInput
                 document.getElementById('searchInput').addEventListener('input', e => { 
-                    const searchTerm = e.target.value.toLowerCase(); 
-                    const filteredSystems = enrichedData.filter(item => Object.values(item).some(val => String(val).toLowerCase().includes(searchTerm)));
-                    renderTable(filteredSystems);
-                    updateVendorChart(filteredSystems); // Atualiza gráfico de fornecedores
-                    updateDepartmentCostChart(filteredSystems); // Atualiza gráfico de custos
-                    document.getElementById('resetFilterBtn').classList.add('hidden'); 
+                    // Se o usuário digitar, limpa o filtro de departamento
+                    if(currentDeptFilter) {
+                        currentDeptFilter = null;
+                        document.getElementById('resetFilterBtn').classList.add('hidden');
+                        updateMonthlyCostChart(null); // Reseta o gráfico de linha
+                    }
+                    refreshTable();
                 });
 
+                // MODIFICADO: departmentChart
                 document.getElementById('departmentChart').onclick = (evt) => { 
                     const points = departmentChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true); 
                     if (points.length) { 
-                        const label = departmentChart.data.labels[points[0].index]; 
-                        const filteredSystems = enrichedData.filter(item => item.departamento === label);
-                        renderTable(filteredSystems);
-                        updateVendorChart(filteredSystems);
-                        updateDepartmentCostChart(filteredSystems);
+                        const label = departmentChart.data.labels[points[0].index];
+                        currentDeptFilter = label; // Define o filtro de depto
+                        document.getElementById('searchInput').value = ''; // Limpa a busca
+                        document.getElementById('sortCostSelect').value = 'default'; // Reseta o sort
                         document.getElementById('resetFilterBtn').classList.remove('hidden'); 
+                        refreshTable(); // Atualiza a tabela
                     } 
                 };
 
+                // NOVO: Listener para o select de ordenação
+                document.getElementById('sortCostSelect').addEventListener('change', () => {
+                    refreshTable();
+                });
+
+                // MODIFICADO: resetFilterBtn
                 document.getElementById('resetFilterBtn').onclick = () => { 
-                    renderTable(enrichedData); 
-                    updateVendorChart(enrichedData);
-                    updateDepartmentCostChart(enrichedData);
-                    updateMonthlyCostChart(null); // ADICIONADO reset para o gráfico de linha
+                    currentDeptFilter = null; // Limpa o filtro de depto
+                    document.getElementById('searchInput').value = ''; // Limpa a busca
+                    document.getElementById('sortCostSelect').value = 'default'; // Reseta o sort
                     document.getElementById('resetFilterBtn').classList.add('hidden'); 
-                    document.getElementById('searchInput').value = ''; 
+                    updateMonthlyCostChart(null); // Reseta o gráfico de linha
+                    refreshTable(); // Atualiza a tabela
                 };
             };
 
@@ -805,8 +865,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
